@@ -1,0 +1,45 @@
+{
+  "manifest_version": 3,
+  "name": "AlgoLens",
+  "version": "1.0.0",
+  "description": "A thinking assistant for LeetCode - guides your problem-solving, never gives solutions",
+  
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  
+  "host_permissions": [
+    "https://leetcode.com/*"
+  ],
+  
+  "background": {
+    "service_worker": "background.js"
+  },
+  
+  "content_scripts": [
+    {
+      "matches": ["https://leetcode.com/problems/*"],
+      "js": ["content.js"],
+      "css": [],
+      "run_at": "document_idle"
+    }
+  ],
+  
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "sidebar/sidebar.html",
+        "sidebar/sidebar.css",
+        "sidebar/sidebar.js",
+        "styles/variables.css",
+        "utils/*.js"
+      ],
+      "matches": ["https://leetcode.com/*"]
+    }
+  ],
+  
+  "action": {
+    "default_title": "Toggle AlgoLens"
+  }
+}

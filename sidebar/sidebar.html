@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AlgoLens</title>
+  <link rel="stylesheet" href="sidebar.css">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="sidebar">
+    <!-- Header -->
+    <header class="sidebar-header">
+      <div class="logo">
+        <span class="logo-icon">◈</span>
+        <span class="logo-text">AlgoLens</span>
+      </div>
+      <div class="header-actions">
+        <button class="icon-btn" id="settingsBtn" title="Settings">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+        <button class="icon-btn" id="refreshBtn" title="Refresh Data">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M23 4v6h-6"></path>
+            <path d="M1 20v-6h6"></path>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
+        </button>
+        <button class="icon-btn" id="closeBtn" title="Close Sidebar">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Problem Title Bar -->
+    <div class="problem-bar" id="problemBar">
+      <span class="problem-title" id="problemTitle">Loading problem...</span>
+      <span class="difficulty-badge" id="difficultyBadge"></span>
+    </div>
+
+    <!-- Main Content -->
+    <main class="sidebar-content">
+      <!-- PRIMARY SECTION GROUP -->
+      <div class="section-group">
+        <span class="section-group-label">Understanding</span>
+        
+        <!-- Section: Problem -->
+        <section class="card" data-section="problem">
+          <button class="card-header" data-toggle="problem">
+            <span class="card-icon">📘</span>
+            <span class="card-title">Problem</span>
+            <svg class="chevron-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+          <div class="card-body" id="problemSection">
+            <div class="card-body-inner">
+              <div class="placeholder">
+                <p class="placeholder-text">Click to analyze the problem</p>
+                <button class="btn btn-primary" data-action="explain">Explain Problem</button>
+              </div>
+              <div class="content hidden" id="problemContent">
+                <div class="content-scroll"></div>
+              </div>
+              <div class="loading hidden">
+                <div class="spinner"></div>
+                <span>Analyzing...</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Section: Constraints -->
+        <section class="card" data-section="constraints">
+          <button class="card-header" data-toggle="constraints">
+            <span class="card-icon">⚠️</span>
+            <span class="card-title">Constraints</span>
+            <svg class="chevron-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+          <div class="card-body" id="constraintsSection">
+            <div class="card-body-inner">
+              <div class="placeholder">
+                <p class="placeholder-text">Understand what constraints tell you</p>
+                <button class="btn btn-primary" data-action="constraints">Analyze Constraints</button>
+              </div>
+              <div class="content hidden" id="constraintsContent">
+                <div class="content-scroll"></div>
+              </div>
+              <div class="loading hidden">
+                <div class="spinner"></div>
+                <span>Interpreting...</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- SECONDARY SECTION GROUP (Tabs) -->
+      <div class="section-group">
+        <span class="section-group-label">Guidance</span>
+        
+        <div class="tabs-container" id="guidanceTabs">
+          <div class="tabs-header">
+            <button class="tab-btn active" data-tab="hints">💡 Hints</button>
+            <button class="tab-btn" data-tab="ideas">🧠 Ideas</button>
+            <button class="tab-btn" data-tab="complexity">🎯 Complexity</button>
+            <div class="tab-indicator" style="width: 33.333%; left: 0;"></div>
+          </div>
+          <div class="tabs-content">
+            <!-- Hints Tab -->
+            <div class="tab-panel active" data-panel="hints" id="hintsPanel">
+              <div class="hint-levels">
+                <button class="hint-btn" data-hint="1">
+                  <span class="hint-level">1</span>
+                  <span class="hint-label">Direction</span>
+                </button>
+                <button class="hint-btn" data-hint="2">
+                  <span class="hint-level">2</span>
+                  <span class="hint-label">Approach</span>
+                </button>
+                <button class="hint-btn" data-hint="3">
+                  <span class="hint-level">3</span>
+                  <span class="hint-label">Logic</span>
+                </button>
+              </div>
+              <div class="tab-panel-scroll">
+                <div class="hints-container" id="hintsContainer"></div>
+              </div>
+              <div class="loading hidden" id="hintsLoading">
+                <div class="spinner"></div>
+                <span>Thinking...</span>
+              </div>
+            </div>
+
+            <!-- Ideas Tab -->
+            <div class="tab-panel" data-panel="ideas" id="ideasPanel">
+              <div class="placeholder" id="ideasPlaceholder">
+                <p class="placeholder-text">Explore different approaches</p>
+                <button class="btn btn-primary" data-action="ideas">Show Approaches</button>
+              </div>
+              <div class="tab-panel-scroll">
+                <div class="content hidden" id="ideasContent"></div>
+              </div>
+              <div class="loading hidden" id="ideasLoading">
+                <div class="spinner"></div>
+                <span>Brainstorming...</span>
+              </div>
+            </div>
+
+            <!-- Complexity Tab -->
+            <div class="tab-panel" data-panel="complexity" id="complexityPanel">
+              <div class="placeholder" id="complexityPlaceholder">
+                <p class="placeholder-text">What complexity should you aim for?</p>
+                <button class="btn btn-primary" data-action="complexity">Determine Complexity</button>
+              </div>
+              <div class="tab-panel-scroll">
+                <div class="content hidden" id="complexityContent"></div>
+              </div>
+              <div class="loading hidden" id="complexityLoading">
+                <div class="spinner"></div>
+                <span>Calculating...</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TOOLS SECTION GROUP -->
+      <div class="section-group">
+        <span class="section-group-label">Tools</span>
+
+        <!-- Section: Analyze Code -->
+        <section class="card" data-section="analyze">
+          <button class="card-header" data-toggle="analyze">
+            <span class="card-icon">✍️</span>
+            <span class="card-title">Analyze Code</span>
+            <svg class="chevron-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+          <div class="card-body" id="analyzeSection">
+            <div class="card-body-inner">
+              <div class="placeholder">
+                <p class="placeholder-text">Get feedback on your current code</p>
+                <button class="btn btn-primary" data-action="analyze">Analyze My Code</button>
+              </div>
+              <div class="content hidden" id="analyzeContent">
+                <div class="content-scroll"></div>
+              </div>
+              <div class="loading hidden">
+                <div class="spinner"></div>
+                <span>Reviewing...</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Section: Compare -->
+        <section class="card" data-section="compare">
+          <button class="card-header" data-toggle="compare">
+            <span class="card-icon">🔁</span>
+            <span class="card-title">Compare</span>
+            <svg class="chevron-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+          <div class="card-body" id="compareSection">
+            <div class="card-body-inner">
+              <div class="placeholder">
+                <p class="placeholder-text">Compare with your previous attempt</p>
+                <div style="display: flex; gap: 8px; justify-content: center; flex-wrap: wrap;">
+                  <button class="btn btn-secondary" data-action="snapshot">Save Snapshot</button>
+                  <button class="btn btn-primary" data-action="compare">Compare</button>
+                </div>
+              </div>
+              <div class="content hidden" id="compareContent">
+                <div class="content-scroll"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- HELP SECTION GROUP -->
+      <div class="section-group">
+        <span class="section-group-label">Help</span>
+
+        <!-- Section: Stuck -->
+        <section class="card card-stuck" data-section="stuck">
+          <button class="card-header" data-toggle="stuck">
+            <span class="card-icon">🆘</span>
+            <span class="card-title">Stuck?</span>
+            <svg class="chevron-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+          <div class="card-body" id="stuckSection">
+            <div class="card-body-inner">
+              <div class="placeholder">
+                <p class="placeholder-text">Get help when you're stuck</p>
+                <button class="btn btn-warning" data-action="stuck">Help Me</button>
+              </div>
+              <div class="content hidden" id="stuckContent">
+                <div class="content-scroll"></div>
+              </div>
+              <div class="loading hidden">
+                <div class="spinner"></div>
+                <span>Finding help...</span>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <!-- Settings Modal -->
+    <div class="modal hidden" id="settingsModal">
+      <div class="modal-backdrop"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Settings</h3>
+          <button class="icon-btn modal-close">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="apiKeyInput">Google Gemini API Key</label>
+            <div class="input-group">
+              <input type="password" id="apiKeyInput" placeholder="AIzaSy..." class="input">
+              <button class="btn btn-secondary" id="toggleApiKey">Show</button>
+            </div>
+            <p class="form-hint">Your Gemini API key is stored locally and never shared.</p>
+          </div>
+          <button class="btn btn-primary btn-full" id="saveApiKey">Save API Key</button>
+        </div>
+        <div class="modal-footer">
+          <p class="api-status" id="apiStatus">
+            <span class="status-dot"></span>
+            <span class="status-text">Checking...</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="sidebar.js"></script>
+</body>
+</html>

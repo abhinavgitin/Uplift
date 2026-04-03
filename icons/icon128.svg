@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="20" fill="#7FBFB5"/>
+  <rect x="8" y="8" width="112" height="112" rx="16" fill="#F5F0E8" stroke="#2D2D2D" stroke-width="4"/>
+  <text x="64" y="82" text-anchor="middle" fill="#2D2D2D" font-family="monospace" font-size="56" font-weight="bold">◈</text>
+  <text x="64" y="105" text-anchor="middle" fill="#5A5A5A" font-family="monospace" font-size="14" font-weight="600">ALGOLENS</text>
+</svg>
