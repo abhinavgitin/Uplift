@@ -1,6 +1,6 @@
 /**
  * AlgoLens - Sidebar JavaScript
- * Handles: UI interactions, state management, API communication
+ * Handles: UI interactions, accordion, tabs, state management, API communication
  */
 
 (function() {
@@ -20,16 +20,9 @@
       3: null
     },
     loading: {},
-    sections: {
-      problem: false,
-      constraints: false,
-      complexity: false,
-      hints: false,
-      ideas: false,
-      analyze: false,
-      compare: false,
-      stuck: false
-    }
+    activeSection: null, // Single open accordion section
+    activeTab: 'hints',   // Active tab in guidance section
+    sectionContent: {}    // Cache of loaded content per section
   };
 
   // ═══════════════════════════════════════════════════════════════
@@ -44,15 +37,9 @@
     refreshBtn: document.getElementById('refreshBtn'),
     closeBtn: document.getElementById('closeBtn'),
     
-    // Sections
-    problemSection: document.getElementById('problemSection'),
-    constraintsSection: document.getElementById('constraintsSection'),
-    complexitySection: document.getElementById('complexitySection'),
-    hintsSection: document.getElementById('hintsSection'),
-    ideasSection: document.getElementById('ideasSection'),
-    analyzeSection: document.getElementById('analyzeSection'),
-    compareSection: document.getElementById('compareSection'),
-    stuckSection: document.getElementById('stuckSection'),
+    // Tabs
+    guidanceTabs: document.getElementById('guidanceTabs'),
+    tabIndicator: document.querySelector('.tab-indicator'),
     
     // Content areas
     problemContent: document.getElementById('problemContent'),
@@ -109,45 +96,187 @@
     return html;
   }
 
+  // ═══════════════════════════════════════════════════════════════
+  // Accordion Logic (Single Open)
+  // ═══════════════════════════════════════════════════════════════
+
+  function openSection(sectionName) {
+    const allCards = document.querySelectorAll('.card[data-section]');
+    
+    allCards.forEach(card => {
+      const section = card.dataset.section;
+      
+      if (section === sectionName) {
+        // Open this section
+        card.classList.add('active');
+        const body = card.querySelector('.card-body');
+        if (body) {
+          const inner = body.querySelector('.card-body-inner');
+          // Set max-height based on actual content height + padding
+          body.style.maxHeight = inner ? `${inner.scrollHeight + 32}px` : 'var(--section-max-height)';
+        }
+        state.activeSection = sectionName;
+      } else {
+        // Close other sections
+        card.classList.remove('active');
+        const body = card.querySelector('.card-body');
+        if (body) {
+          body.style.maxHeight = '0';
+        }
+      }
+    });
+    
+    // Save to localStorage for persistence
+    try {
+      localStorage.setItem('algolens_activeSection', sectionName);
+    } catch (e) {}
+  }
+
+  function closeSection(sectionName) {
+    const card = document.querySelector(`.card[data-section="${sectionName}"]`);
+    if (card) {
+      card.classList.remove('active');
+      const body = card.querySelector('.card-body');
+      if (body) {
+        body.style.maxHeight = '0';
+      }
+    }
+    state.activeSection = null;
+    try {
+      localStorage.removeItem('algolens_activeSection');
+    } catch (e) {}
+  }
+
+  function toggleSection(sectionName) {
+    if (state.activeSection === sectionName) {
+      closeSection(sectionName);
+    } else {
+      openSection(sectionName);
+    }
+  }
+
+  function updateSectionHeight(sectionName) {
+    const card = document.querySelector(`.card[data-section="${sectionName}"]`);
+    if (card && card.classList.contains('active')) {
+      const body = card.querySelector('.card-body');
+      const inner = body?.querySelector('.card-body-inner');
+      if (body && inner) {
+        body.style.maxHeight = `${inner.scrollHeight + 32}px`;
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // Tabs Logic
+  // ═══════════════════════════════════════════════════════════════
+
+  function switchTab(tabName) {
+    const tabs = document.querySelectorAll('.tab-btn');
+    const panels = document.querySelectorAll('.tab-panel');
+    const indicator = elements.tabIndicator;
+    
+    tabs.forEach((tab, index) => {
+      if (tab.dataset.tab === tabName) {
+        tab.classList.add('active');
+        // Move indicator
+        if (indicator) {
+          indicator.style.width = `${100 / tabs.length}%`;
+          indicator.style.left = `${(index * 100) / tabs.length}%`;
+        }
+      } else {
+        tab.classList.remove('active');
+      }
+    });
+    
+    panels.forEach(panel => {
+      if (panel.dataset.panel === tabName) {
+        panel.classList.add('active');
+      } else {
+        panel.classList.remove('active');
+      }
+    });
+    
+    state.activeTab = tabName;
+    
+    // Save preference
+    try {
+      localStorage.setItem('algolens_activeTab', tabName);
+    } catch (e) {}
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // Loading States
+  // ═══════════════════════════════════════════════════════════════
+
   function showLoading(section) {
-    const sectionEl = document.getElementById(`${section}Section`);
-    if (!sectionEl) return;
-    
-    const placeholder = sectionEl.querySelector('.placeholder');
-    const loading = sectionEl.querySelector('.loading');
-    const content = sectionEl.querySelector('.content');
-    
-    if (placeholder) placeholder.classList.add('hidden');
-    if (loading) loading.classList.remove('hidden');
-    if (content) content.classList.add('hidden');
-    
     state.loading[section] = true;
+    
+    // Handle tab panels differently
+    if (['hints', 'ideas', 'complexity'].includes(section)) {
+      const loading = document.getElementById(`${section}Loading`);
+      const placeholder = document.getElementById(`${section}Placeholder`);
+      const content = document.getElementById(`${section}Content`);
+      
+      if (loading) loading.classList.remove('hidden');
+      if (placeholder) placeholder.classList.add('hidden');
+      if (content) content.classList.add('hidden');
+    } else {
+      const sectionEl = document.getElementById(`${section}Section`);
+      if (!sectionEl) return;
+      
+      const placeholder = sectionEl.querySelector('.placeholder');
+      const loading = sectionEl.querySelector('.loading');
+      const content = sectionEl.querySelector('.content');
+      
+      if (placeholder) placeholder.classList.add('hidden');
+      if (loading) loading.classList.remove('hidden');
+      if (content) content.classList.add('hidden');
+    }
   }
 
   function hideLoading(section, showContent = true) {
-    const sectionEl = document.getElementById(`${section}Section`);
-    if (!sectionEl) return;
-    
-    const placeholder = sectionEl.querySelector('.placeholder');
-    const loading = sectionEl.querySelector('.loading');
-    const content = sectionEl.querySelector('.content');
-    
-    if (loading) loading.classList.add('hidden');
-    
-    if (showContent && content) {
-      content.classList.remove('hidden');
-      if (placeholder) placeholder.classList.add('hidden');
-    } else if (placeholder) {
-      placeholder.classList.remove('hidden');
-    }
-    
     state.loading[section] = false;
+    
+    if (['hints', 'ideas', 'complexity'].includes(section)) {
+      const loading = document.getElementById(`${section}Loading`);
+      const placeholder = document.getElementById(`${section}Placeholder`);
+      const content = document.getElementById(`${section}Content`);
+      
+      if (loading) loading.classList.add('hidden');
+      
+      if (showContent && content) {
+        content.classList.remove('hidden');
+        if (placeholder) placeholder.classList.add('hidden');
+      } else if (placeholder) {
+        placeholder.classList.remove('hidden');
+      }
+    } else {
+      const sectionEl = document.getElementById(`${section}Section`);
+      if (!sectionEl) return;
+      
+      const placeholder = sectionEl.querySelector('.placeholder');
+      const loading = sectionEl.querySelector('.loading');
+      const content = sectionEl.querySelector('.content');
+      
+      if (loading) loading.classList.add('hidden');
+      
+      if (showContent && content) {
+        content.classList.remove('hidden');
+        if (placeholder) placeholder.classList.add('hidden');
+      } else if (placeholder) {
+        placeholder.classList.remove('hidden');
+      }
+      
+      // Update section height after content change
+      updateSectionHeight(section);
+    }
   }
 
   function showError(section, message) {
     const content = document.getElementById(`${section}Content`);
     if (content) {
-      content.innerHTML = `<p style="color: var(--accent-red);">⚠️ ${message}</p>`;
+      const scrollContainer = content.querySelector('.content-scroll') || content;
+      scrollContainer.innerHTML = `<p style="color: var(--color-error);">⚠️ ${message}</p>`;
     }
     hideLoading(section, true);
   }
@@ -190,7 +319,9 @@
       const result = await requestAI('explain');
       
       if (result.success) {
-        elements.problemContent.innerHTML = formatContent(result.content);
+        const scrollContainer = elements.problemContent.querySelector('.content-scroll') || elements.problemContent;
+        scrollContainer.innerHTML = formatContent(result.content);
+        state.sectionContent.problem = result.content;
         hideLoading('problem', true);
       } else {
         showError('problem', result.error || 'Failed to analyze problem');
@@ -207,7 +338,9 @@
       const result = await requestAI('constraints');
       
       if (result.success) {
-        elements.constraintsContent.innerHTML = formatContent(result.content);
+        const scrollContainer = elements.constraintsContent.querySelector('.content-scroll') || elements.constraintsContent;
+        scrollContainer.innerHTML = formatContent(result.content);
+        state.sectionContent.constraints = result.content;
         hideLoading('constraints', true);
       } else {
         showError('constraints', result.error || 'Failed to analyze constraints');
@@ -225,6 +358,7 @@
       
       if (result.success) {
         elements.complexityContent.innerHTML = formatContent(result.content);
+        state.sectionContent.complexity = result.content;
         hideLoading('complexity', true);
       } else {
         showError('complexity', result.error || 'Failed to determine complexity');
@@ -240,8 +374,8 @@
       return;
     }
     
-    const loadingEl = elements.hintsSection.querySelector('.loading');
-    loadingEl.classList.remove('hidden');
+    const loadingEl = document.getElementById('hintsLoading');
+    if (loadingEl) loadingEl.classList.remove('hidden');
     
     try {
       const result = await requestAI(`hint${level}`);
@@ -259,6 +393,7 @@
         hintCard.innerHTML = `
           <div class="hint-card-header">
             <span>Level ${level}</span>
+            <span>•</span>
             <span>${level === 1 ? 'Direction' : level === 2 ? 'Approach' : 'Logic'}</span>
           </div>
           <div class="hint-card-body">${formatContent(result.content)}</div>
@@ -271,7 +406,7 @@
       console.error('Hint error:', error);
     }
     
-    loadingEl.classList.add('hidden');
+    if (loadingEl) loadingEl.classList.add('hidden');
   }
 
   async function handleIdeas() {
@@ -282,6 +417,7 @@
       
       if (result.success) {
         elements.ideasContent.innerHTML = formatContent(result.content);
+        state.sectionContent.ideas = result.content;
         hideLoading('ideas', true);
       } else {
         showError('ideas', result.error || 'Failed to generate ideas');
@@ -304,7 +440,9 @@
       const result = await requestAI('analyze');
       
       if (result.success) {
-        elements.analyzeContent.innerHTML = formatContent(result.content);
+        const scrollContainer = elements.analyzeContent.querySelector('.content-scroll') || elements.analyzeContent;
+        scrollContainer.innerHTML = formatContent(result.content);
+        state.sectionContent.analyze = result.content;
         hideLoading('analyze', true);
       } else {
         showError('analyze', result.error || 'Failed to analyze code');
@@ -338,13 +476,15 @@
 
   function handleCompare() {
     if (!state.previousCode?.content || !state.codeData?.content) {
-      elements.compareContent.innerHTML = `
+      const scrollContainer = elements.compareContent.querySelector('.content-scroll') || elements.compareContent;
+      scrollContainer.innerHTML = `
         <p style="color: var(--text-muted);">
           Save a snapshot first, then make changes to compare.
         </p>
       `;
       elements.compareContent.classList.remove('hidden');
       document.querySelector('#compareSection .placeholder').classList.add('hidden');
+      updateSectionHeight('compare');
       return;
     }
     
@@ -384,7 +524,8 @@
       insights.push('Added nested loops → watch complexity');
     }
     
-    elements.compareContent.innerHTML = `
+    const scrollContainer = elements.compareContent.querySelector('.content-scroll') || elements.compareContent;
+    scrollContainer.innerHTML = `
       <div class="compare-info">
         <div class="compare-stat">
           <span class="compare-label">Lines</span>
@@ -409,6 +550,7 @@
     
     elements.compareContent.classList.remove('hidden');
     document.querySelector('#compareSection .placeholder').classList.add('hidden');
+    updateSectionHeight('compare');
   }
 
   async function handleStuck() {
@@ -423,7 +565,9 @@
       const result = await requestAI('stuck');
       
       if (result.success) {
-        elements.stuckContent.innerHTML = formatContent(result.content);
+        const scrollContainer = elements.stuckContent.querySelector('.content-scroll') || elements.stuckContent;
+        scrollContainer.innerHTML = formatContent(result.content);
+        state.sectionContent.stuck = result.content;
         hideLoading('stuck', true);
       } else {
         showError('stuck', result.error || 'Failed to get help');
@@ -438,11 +582,20 @@
   // ═══════════════════════════════════════════════════════════════
   
   function setupEventListeners() {
-    // Card collapse/expand
+    // Accordion toggle (single open)
     document.querySelectorAll('.card-header').forEach(header => {
       header.addEventListener('click', () => {
         const card = header.closest('.card');
-        card.classList.toggle('collapsed');
+        const sectionName = card.dataset.section;
+        toggleSection(sectionName);
+      });
+    });
+    
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const tabName = tab.dataset.tab;
+        switchTab(tabName);
       });
     });
     
@@ -491,7 +644,7 @@
     // Modal
     elements.settingsModal?.addEventListener('click', (e) => {
       if (e.target.classList.contains('modal-backdrop') || 
-          e.target.classList.contains('modal-close')) {
+          e.target.closest('.modal-close')) {
         elements.settingsModal.classList.add('hidden');
       }
     });
@@ -527,16 +680,16 @@
     try {
       const result = await sendToBackground({ type: 'GET_API_KEY' });
       const statusEl = elements.apiStatus;
-      const textEl = statusEl.querySelector('.status-text');
+      const textEl = statusEl?.querySelector('.status-text');
       
       if (result.hasKey) {
-        statusEl.classList.add('connected');
-        statusEl.classList.remove('disconnected');
-        textEl.textContent = 'API key configured';
+        statusEl?.classList.add('connected');
+        statusEl?.classList.remove('disconnected');
+        if (textEl) textEl.textContent = 'API key configured';
       } else {
-        statusEl.classList.add('disconnected');
-        statusEl.classList.remove('connected');
-        textEl.textContent = 'No API key set';
+        statusEl?.classList.add('disconnected');
+        statusEl?.classList.remove('connected');
+        if (textEl) textEl.textContent = 'No API key set';
       }
     } catch (error) {
       console.error('Failed to check API key:', error);
@@ -593,6 +746,29 @@
   }
 
   // ═══════════════════════════════════════════════════════════════
+  // Restore Previous State
+  // ═══════════════════════════════════════════════════════════════
+
+  function restoreState() {
+    try {
+      // Restore active section
+      const savedSection = localStorage.getItem('algolens_activeSection');
+      if (savedSection) {
+        // Delay to allow DOM to settle
+        setTimeout(() => openSection(savedSection), 100);
+      }
+      
+      // Restore active tab
+      const savedTab = localStorage.getItem('algolens_activeTab');
+      if (savedTab) {
+        switchTab(savedTab);
+      }
+    } catch (e) {
+      // localStorage not available
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════
   // Initialization
   // ═══════════════════════════════════════════════════════════════
   
@@ -601,6 +777,9 @@
     
     // Setup event listeners
     setupEventListeners();
+    
+    // Restore previous state
+    restoreState();
     
     // Listen for messages from parent
     window.addEventListener('message', handleMessage);

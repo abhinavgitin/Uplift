@@ -1,7 +1,7 @@
 /**
  * AlgoLens - Content Script
  * Runs on LeetCode problem pages
- * Handles: DOM extraction, sidebar injection, message passing
+ * Handles: FAB button, sidebar injection, DOM extraction, message passing
  */
 
 (function() {
@@ -14,12 +14,117 @@
   console.log('🔍 AlgoLens: Initializing...');
 
   // ═══════════════════════════════════════════════════════════════
+  // Constants
+  // ═══════════════════════════════════════════════════════════════
+  
+  const SIDEBAR_WIDTH = 360;
+  const ANIMATION_DURATION = 300;
+  
+  // FAB button styles (injected into page)
+  const FAB_STYLES = `
+    #algolens-fab {
+      position: fixed;
+      right: 24px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6A5CFF 0%, #9B6CFF 100%);
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(107, 92, 255, 0.4);
+      z-index: 999998;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      outline: none;
+    }
+    
+    #algolens-fab:hover {
+      transform: translateY(-50%) scale(1.08);
+      box-shadow: 0 6px 28px rgba(107, 92, 255, 0.5);
+    }
+    
+    #algolens-fab:active {
+      transform: translateY(-50%) scale(0.96);
+    }
+    
+    #algolens-fab.sidebar-open {
+      right: ${SIDEBAR_WIDTH + 24}px;
+    }
+    
+    #algolens-fab svg {
+      width: 24px;
+      height: 24px;
+      fill: white;
+      transition: transform 0.3s ease;
+    }
+    
+    #algolens-fab.sidebar-open svg {
+      transform: rotate(180deg);
+    }
+    
+    #algolens-fab.pulse {
+      animation: algolens-pulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes algolens-pulse {
+      0%, 100% { box-shadow: 0 4px 20px rgba(107, 92, 255, 0.4); }
+      50% { box-shadow: 0 4px 30px rgba(107, 92, 255, 0.7), 0 0 60px rgba(107, 92, 255, 0.3); }
+    }
+    
+    #algolens-sidebar-container {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: ${SIDEBAR_WIDTH}px;
+      height: 100vh;
+      z-index: 999999;
+      transform: translateX(100%);
+      transition: transform ${ANIMATION_DURATION}ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    
+    #algolens-sidebar-container.visible {
+      transform: translateX(0);
+    }
+    
+    #algolens-sidebar-frame {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: transparent;
+    }
+    
+    /* Overlay for closing sidebar by clicking outside */
+    #algolens-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: ${SIDEBAR_WIDTH}px;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.2);
+      z-index: 999997;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity ${ANIMATION_DURATION}ms ease, visibility ${ANIMATION_DURATION}ms ease;
+    }
+    
+    #algolens-overlay.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+  `;
+
+  // ═══════════════════════════════════════════════════════════════
   // State
   // ═══════════════════════════════════════════════════════════════
   
   const state = {
-    sidebarVisible: true,
+    sidebarVisible: false, // Start hidden (FAB mode)
     sidebarInjected: false,
+    fabInjected: false,
     problemData: null,
     lastCodeSnapshot: null
   };
@@ -30,6 +135,19 @@
   
   function isLeetCodeProblemPage() {
     return window.location.href.includes('leetcode.com/problems/');
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // Style Injection
+  // ═══════════════════════════════════════════════════════════════
+  
+  function injectStyles() {
+    if (document.getElementById('algolens-styles')) return;
+    
+    const style = document.createElement('style');
+    style.id = 'algolens-styles';
+    style.textContent = FAB_STYLES;
+    document.head.appendChild(style);
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -140,11 +258,47 @@
   }
 
   // ═══════════════════════════════════════════════════════════════
-  // Sidebar Injection
+  // FAB Button
+  // ═══════════════════════════════════════════════════════════════
+  
+  function createFAB() {
+    if (state.fabInjected) return;
+    
+    const fab = document.createElement('button');
+    fab.id = 'algolens-fab';
+    fab.title = 'Open AlgoLens';
+    fab.innerHTML = `
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8-8-8z"/>
+      </svg>
+    `;
+    
+    fab.addEventListener('click', toggleSidebar);
+    document.body.appendChild(fab);
+    
+    state.fabInjected = true;
+    
+    // Add pulse animation for first 5 seconds to attract attention
+    fab.classList.add('pulse');
+    setTimeout(() => {
+      fab.classList.remove('pulse');
+    }, 5000);
+    
+    console.log('🔍 AlgoLens: FAB button created');
+  }
+
+  // ═══════════════════════════════════════════════════════════════
+  // Sidebar
   // ═══════════════════════════════════════════════════════════════
   
   function injectSidebar() {
     if (state.sidebarInjected) return;
+
+    // Create overlay for clicking outside to close
+    const overlay = document.createElement('div');
+    overlay.id = 'algolens-overlay';
+    overlay.addEventListener('click', hideSidebar);
+    document.body.appendChild(overlay);
 
     // Create sidebar container
     const container = document.createElement('div');
@@ -154,23 +308,9 @@
     const iframe = document.createElement('iframe');
     iframe.id = 'algolens-sidebar-frame';
     iframe.src = chrome.runtime.getURL('sidebar/sidebar.html');
-    iframe.style.cssText = `
-      width: 380px;
-      height: 100vh;
-      border: none;
-      position: fixed;
-      top: 0;
-      right: 0;
-      z-index: 999999;
-      background: transparent;
-    `;
     
     container.appendChild(iframe);
     document.body.appendChild(container);
-    
-    // Add body padding to prevent overlap
-    document.body.style.marginRight = '380px';
-    document.body.style.transition = 'margin-right 0.3s ease';
     
     state.sidebarInjected = true;
     console.log('🔍 AlgoLens: Sidebar injected');
@@ -183,18 +323,48 @@
     };
   }
 
-  function toggleSidebar() {
-    const container = document.getElementById('algolens-sidebar-container');
-    if (!container) return;
-
-    state.sidebarVisible = !state.sidebarVisible;
+  function showSidebar() {
+    if (state.sidebarVisible) return;
     
+    const container = document.getElementById('algolens-sidebar-container');
+    const fab = document.getElementById('algolens-fab');
+    const overlay = document.getElementById('algolens-overlay');
+    
+    if (container) container.classList.add('visible');
+    if (fab) {
+      fab.classList.add('sidebar-open');
+      fab.title = 'Close AlgoLens';
+    }
+    if (overlay) overlay.classList.add('visible');
+    
+    state.sidebarVisible = true;
+    
+    // Send fresh data when opening
+    setTimeout(sendDataToSidebar, 100);
+  }
+
+  function hideSidebar() {
+    if (!state.sidebarVisible) return;
+    
+    const container = document.getElementById('algolens-sidebar-container');
+    const fab = document.getElementById('algolens-fab');
+    const overlay = document.getElementById('algolens-overlay');
+    
+    if (container) container.classList.remove('visible');
+    if (fab) {
+      fab.classList.remove('sidebar-open');
+      fab.title = 'Open AlgoLens';
+    }
+    if (overlay) overlay.classList.remove('visible');
+    
+    state.sidebarVisible = false;
+  }
+
+  function toggleSidebar() {
     if (state.sidebarVisible) {
-      container.style.display = 'block';
-      document.body.style.marginRight = '380px';
+      hideSidebar();
     } else {
-      container.style.display = 'none';
-      document.body.style.marginRight = '0';
+      showSidebar();
     }
   }
 
@@ -266,6 +436,23 @@
   });
 
   // ═══════════════════════════════════════════════════════════════
+  // Keyboard Shortcuts
+  // ═══════════════════════════════════════════════════════════════
+  
+  document.addEventListener('keydown', (e) => {
+    // Escape to close sidebar
+    if (e.key === 'Escape' && state.sidebarVisible) {
+      hideSidebar();
+    }
+    
+    // Ctrl/Cmd + Shift + L to toggle sidebar
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'L') {
+      e.preventDefault();
+      toggleSidebar();
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════
   // Observers
   // ═══════════════════════════════════════════════════════════════
   
@@ -312,18 +499,27 @@
     // Wait for page to fully load
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', () => {
-        setTimeout(initSidebar, 1000);
+        setTimeout(initUI, 1000);
       });
     } else {
-      setTimeout(initSidebar, 1000);
+      setTimeout(initUI, 1000);
     }
   }
 
-  function initSidebar() {
+  function initUI() {
+    // Inject styles first
+    injectStyles();
+    
+    // Create FAB button
+    createFAB();
+    
+    // Inject sidebar (hidden initially)
     injectSidebar();
     
     // Start observing code changes after a delay
     setTimeout(observeCodeChanges, 2000);
+    
+    console.log('🔍 AlgoLens: UI initialized (FAB mode)');
   }
 
   // Start
@@ -336,6 +532,11 @@
     if (url !== lastUrl) {
       lastUrl = url;
       if (isLeetCodeProblemPage()) {
+        // Re-inject FAB and sidebar if needed
+        if (!document.getElementById('algolens-fab')) {
+          createFAB();
+        }
+        // Send fresh data
         setTimeout(sendDataToSidebar, 1500);
       }
     }
