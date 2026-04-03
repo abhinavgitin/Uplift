@@ -13,30 +13,6 @@ AlgoLens is a Manifest V3 Chrome extension that sits beside LeetCode problems to
 
 ---
 
-## 🗂️ Project Structure
-Uplift/
-├── background.js          # Service worker: API calls and message routing
-├── content.js             # Content script: page detection, DOM extraction, sidebar iframe
-├── generate-icons.js      # Helper to regenerate SVG icons
-├── icons/
-│   ├── icon16.svg
-│   ├── icon48.svg
-│   └── icon128.svg
-├── manifest.json          # Chrome extension manifest (MV3)
-├── sidebar/
-│   ├── sidebar.css
-│   ├── sidebar.html
-│   └── sidebar.js
-├── styles/
-│   └── variables.css      # Design tokens (dark/purple theme)
-├── utils/
-│   ├── codeScanner.js     # Code pattern and complexity heuristics
-│   ├── constraints.js     # Constraint → complexity insights
-│   └── storage.js         # Chrome storage wrappers and helpers
-└── README.md
-
----
-
 ## 🛠️ Tech Stack
 
 | Layer | Technology |
