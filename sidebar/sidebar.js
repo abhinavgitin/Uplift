@@ -52,11 +52,7 @@
     stuckContent: document.getElementById('stuckContent'),
     
     // Modal
-    settingsModal: document.getElementById('settingsModal'),
-    apiKeyInput: document.getElementById('apiKeyInput'),
-    toggleApiKey: document.getElementById('toggleApiKey'),
-    saveApiKey: document.getElementById('saveApiKey'),
-    apiStatus: document.getElementById('apiStatus')
+    settingsModal: document.getElementById('settingsModal')
   };
 
   // ═══════════════════════════════════════════════════════════════
@@ -630,7 +626,6 @@
     // Header buttons
     elements.settingsBtn?.addEventListener('click', () => {
       elements.settingsModal.classList.remove('hidden');
-      checkApiKey();
     });
     
     elements.refreshBtn?.addEventListener('click', () => {
@@ -649,51 +644,6 @@
       }
     });
     
-    elements.toggleApiKey?.addEventListener('click', () => {
-      const input = elements.apiKeyInput;
-      const isPassword = input.type === 'password';
-      input.type = isPassword ? 'text' : 'password';
-      elements.toggleApiKey.textContent = isPassword ? 'Hide' : 'Show';
-    });
-    
-    elements.saveApiKey?.addEventListener('click', async () => {
-      const key = elements.apiKeyInput.value.trim();
-      if (!key) return;
-      
-      elements.saveApiKey.disabled = true;
-      elements.saveApiKey.textContent = 'Saving...';
-      
-      try {
-        await sendToBackground({ type: 'SET_API_KEY', apiKey: key });
-        elements.apiKeyInput.value = '';
-        await checkApiKey();
-      } catch (error) {
-        console.error('Failed to save API key:', error);
-      }
-      
-      elements.saveApiKey.disabled = false;
-      elements.saveApiKey.textContent = 'Save API Key';
-    });
-  }
-
-  async function checkApiKey() {
-    try {
-      const result = await sendToBackground({ type: 'GET_API_KEY' });
-      const statusEl = elements.apiStatus;
-      const textEl = statusEl?.querySelector('.status-text');
-      
-      if (result.hasKey) {
-        statusEl?.classList.add('connected');
-        statusEl?.classList.remove('disconnected');
-        if (textEl) textEl.textContent = 'API key configured';
-      } else {
-        statusEl?.classList.add('disconnected');
-        statusEl?.classList.remove('connected');
-        if (textEl) textEl.textContent = 'No API key set';
-      }
-    } catch (error) {
-      console.error('Failed to check API key:', error);
-    }
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -786,9 +736,6 @@
     
     // Request initial data
     window.parent.postMessage({ type: 'ALGOLENS_REQUEST_DATA' }, '*');
-    
-    // Check API key status
-    checkApiKey();
     
     console.log('🔍 AlgoLens Sidebar: Ready');
   }

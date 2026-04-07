@@ -1,15 +1,17 @@
 ---
 
 ## 📌 Overview
-AlgoLens is a Manifest V3 Chrome extension that sits beside LeetCode problems to guide your thinking without ever handing over solutions. It reads the live problem statement and your current editor content, then uses Google Gemini to surface hints, constraint insights, and lightweight code feedback. Built for learners who want structured guidance while keeping full ownership of their solution.
+AlgoLens is a Manifest V3 Chrome extension for LeetCode guidance.  
+It now supports a production-style architecture where AI calls are routed through a secure Node.js backend so API keys are never exposed in extension code.
 
 ---
 
 ## ✨ Features
-- ✅ Context-aware sidebar injected on LeetCode problem pages with toggleable sections.
-- ✅ Guided hints, constraint analysis, and expected complexity powered by Gemini prompts.
-- ✅ Code snapshots, compare view, and lightweight pattern scanning to reflect on your own changes.
-- ✅ Local-first storage for API keys, snapshots, and revealed hints—no external backend.
+- ✅ Context-aware LeetCode sidebar UI.
+- ✅ Backend API proxy for AI inference (`POST /api/ai/solve`).
+- ✅ Multi-provider support via pluggable service layer (OpenAI, Gemini, Grok).
+- ✅ Environment-variable secret management with `.env`.
+- ✅ Modular backend structure for growth (routes, controllers, services, providers, middleware).
 
 ---
 
@@ -17,72 +19,150 @@ AlgoLens is a Manifest V3 Chrome extension that sits beside LeetCode problems to
 
 | Layer | Technology |
 |-------|------------|
-| Language | JavaScript (ESNext), HTML, CSS |
-| Framework | None (Chrome Extensions MV3, vanilla DOM) |
-| Tools | Chrome Storage API, Google Gemini API, MutationObserver, web-accessible iframe UI |
+| Extension | JavaScript, HTML, CSS, Chrome Extensions MV3 |
+| Backend | Node.js, Express, Zod, Helmet, CORS, dotenv |
+| AI Providers | OpenAI, Google Gemini, Grok (xAI API) |
 
 ---
 
-## ⚙️ Getting Started
+## 🧠 Architecture
+Flow:
+1. Chrome Extension sends payload to backend.
+2. Backend validates input and selects provider.
+3. Backend calls provider API using server-side env keys.
+4. Backend returns normalized response:
 
-### Prerequisites
-- Google Chrome (or Chromium-based) with Extension Developer Mode enabled.
-- Google Gemini API key (obtainable from https://aistudio.google.com/apikey).
-- Node.js 18+ only if you want to regenerate the SVG icons before converting to PNG.
-
-### Installation
-```bash
-# Clone the repository
-git clone https://github.com/abhinavgitin/Uplift.git
-cd Uplift
-
-# (Optional) Regenerate SVG icons
-node generate-icons.js
-
-# Convert icons to PNGs for Chrome (use ImageMagick or any SVG→PNG tool)
-magick convert icons/icon16.svg icons/icon16.png
-magick convert icons/icon48.svg icons/icon48.png
-magick convert icons/icon128.svg icons/icon128.png
+```json
+{
+  "success": true,
+  "data": "AI response..."
+}
 ```
 
-### Run
-```bash
-# Load the extension
-chrome://extensions
-# Enable Developer mode, click "Load unpacked", and select the Uplift folder
+No API key should be stored in Chrome storage or frontend code.
 
-# Use it
-1) Open any https://leetcode.com/problems/... page
-2) Open the sidebar settings (gear icon) and paste your Gemini API key
-3) Ask for hints, constraint analysis, or code feedback as you iterate
+---
+
+## 📁 Backend Structure
+
+```text
+backend/
+  src/
+    app.js
+    server.js
+    config/
+      env.js
+    controllers/
+      aiController.js
+    middleware/
+      errorHandler.js
+      rateLimiter.js
+      requestLogger.js
+      validateRequest.js
+    providers/
+      openaiProvider.js
+      geminiProvider.js
+      grokProvider.js
+    routes/
+      aiRoutes.js
+      healthRoutes.js
+    services/
+      aiService.js
+    utils/
+      appError.js
+      buildSolvePrompt.js
+      logger.js
+  .env.example
+  package.json
 ```
 
 ---
 
-## 📸 Screenshots / Demo
-> _(Add screenshots here if available)_
+## ⚙️ Backend Setup
+
+```bash
+cd backend
+npm install
+cp .env.example .env
+```
+
+Set your environment variables in `.env`:
+
+```env
+NODE_ENV=development
+PORT=8080
+CORS_ORIGIN=chrome-extension://<your-extension-id>
+AI_PROVIDER=openai
+RATE_LIMIT_WINDOW_MS=60000
+RATE_LIMIT_MAX_REQUESTS=60
+
+OPENAI_API_KEY=...
+OPENAI_MODEL=gpt-4.1-mini
+
+GEMINI_API_KEY=...
+GEMINI_MODEL=gemini-2.0-flash
+
+GROK_API_KEY=...
+GROK_MODEL=grok-beta
+```
+
+Run backend:
+
+```bash
+npm run dev
+```
+
+Health check:
+
+```bash
+GET http://localhost:8080/health
+```
+
+Solve endpoint:
+
+```bash
+POST http://localhost:8080/api/ai/solve
+Content-Type: application/json
+```
+
+Body:
+
+```json
+{
+  "problem": "Two Sum...",
+  "code": "function twoSum(nums, target) {}",
+  "language": "javascript"
+}
+```
+
+Optional provider override:
+- Header: `x-ai-provider: gemini` (or `openai`, `grok`)
 
 ---
 
-## 🧠 How It Works
-`content.js` detects LeetCode problem pages, extracts the problem statement and live editor code, and injects the sidebar iframe. The sidebar UI (`sidebar.html/js/css`) handles user interactions, hint requests, code snapshots, and comparison. All AI requests flow through the background service worker (`background.js`), which crafts Gemini prompts and returns responses; helpers in `utils/` parse constraints and scan code patterns. API keys and snapshots stay in Chrome storage—no external servers involved.
+## 🔌 Provider Switching
+Two ways:
+- Global default via `AI_PROVIDER` in `.env`
+- Per-request override via `x-ai-provider` header
+
+To add another provider:
+1. Create `src/providers/<provider>Provider.js`
+2. Export a `solveWith<Provider>(prompt)` function
+3. Register it in `src/services/aiService.js`
+4. Add env keys in `src/config/env.js` and `.env.example`
 
 ---
 
-## 🤝 Contributing
-Contributions are welcome!  
-Fork → Branch → Commit → Pull Request
+## ☁️ Moving from Local to Cloud
+- Deploy `backend/` to Render or Vercel.
+- Set all API keys and config in platform environment variables.
+- Set `CORS_ORIGIN` to your extension origin (or controlled list).
+- Update extension backend base URL to deployed HTTPS API.
+- Add managed rate limiting and logging/monitoring as scale grows.
 
 ---
 
 ## 📄 License
-This project is licensed under the MIT License.
-
----
-
-## 👤 Author
-
-**abhinavgitin**  
-<a href="https://twitter.com/abhinavgitin">@abhinavgitin</a> • <a href="https://github.com/abhinavgitin">GitHub</a>
+MIT
 
 ---

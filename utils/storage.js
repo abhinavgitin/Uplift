@@ -160,32 +160,7 @@ const Storage = {
     return newSettings;
   },
 
-  // ─── API Key ───
-
-  /**
-   * Get API key (masked for display)
-   */
-  async getApiKeyStatus() {
-    const key = await this.get('apiKey');
-    return {
-      hasKey: !!key,
-      masked: key ? '••••••••' + key.slice(-4) : null
-    };
-  },
-
-  /**
-   * Set API key
-   */
-  async setApiKey(key) {
-    await this.set('apiKey', key);
-  },
-
-  /**
-   * Get raw API key (for API calls)
-   */
-  async getApiKey() {
-    return await this.get('apiKey');
-  }
+  // Future settings helpers can be added here.
 };
 
 // Export for use in other modules

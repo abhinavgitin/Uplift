@@ -8,109 +8,50 @@
 // ═══════════════════════════════════════════════════════════════
 
 const CONFIG = {
-  API_ENDPOINT: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
-  MODEL: 'gemini-2.0-flash',
-  MAX_TOKENS: 1024
+  BACKEND_SOLVE_ENDPOINT: 'http://localhost:8080/api/ai/solve'
 };
 
 // ═══════════════════════════════════════════════════════════════
-// API Key Management
+// Backend API Integration
 // ═══════════════════════════════════════════════════════════════
 
-async function getApiKey() {
-  const result = await chrome.storage.local.get('apiKey');
-  return result.apiKey || null;
-}
-
-async function setApiKey(key) {
-  await chrome.storage.local.set({ apiKey: key });
-}
-
-// ═══════════════════════════════════════════════════════════════
-// Google Gemini API Integration
-// ═══════════════════════════════════════════════════════════════
-
-async function callGeminiAPI(systemPrompt, userPrompt) {
-  const apiKey = await getApiKey();
-  
-  if (!apiKey) {
-    return {
-      success: false,
-      error: 'API key not configured. Please set your Gemini API key in settings.'
-    };
-  }
-
+async function callBackendAPI(payload) {
   try {
-    const response = await fetch(`${CONFIG.API_ENDPOINT}?key=${apiKey}`, {
+    const response = await fetch(CONFIG.BACKEND_SOLVE_ENDPOINT, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: `${systemPrompt}\n\n${userPrompt}`
-              }
-            ]
-          }
-        ],
-        generationConfig: {
-          maxOutputTokens: CONFIG.MAX_TOKENS,
-          temperature: 0.7
-        },
-        safetySettings: [
-          {
-            category: "HARM_CATEGORY_HARASSMENT",
-            threshold: "BLOCK_NONE"
-          },
-          {
-            category: "HARM_CATEGORY_HATE_SPEECH",
-            threshold: "BLOCK_NONE"
-          },
-          {
-            category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-            threshold: "BLOCK_NONE"
-          },
-          {
-            category: "HARM_CATEGORY_DANGEROUS_CONTENT",
-            threshold: "BLOCK_NONE"
-          }
-        ]
-      })
+      body: JSON.stringify(payload)
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      const error = await response.json().catch(() => ({}));
       return {
         success: false,
-        error: error.error?.message || `API error: ${response.status}`
+        error: error?.error?.message || `Backend API error: ${response.status}`
       };
     }
 
     const data = await response.json();
-    
-    // Extract text from Gemini response format
-    const content = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    
-    if (!content) {
+
+    if (!data?.success || !data?.data) {
       return {
         success: false,
-        error: 'No response from Gemini'
+        error: 'No response from backend'
       };
     }
 
     return {
       success: true,
-      content: content
+      content: data.data
     };
 
   } catch (error) {
-    console.error('AlgoLens API Error:', error);
+    console.error('AlgoLens Backend API Error:', error);
     return {
       success: false,
-      error: error.message || 'Network error occurred'
+      error: error.message || 'Backend network error occurred'
     };
   }
 }
@@ -206,9 +147,6 @@ Keep it under 150 words.`
 // ═══════════════════════════════════════════════════════════════
 
 async function handleAIRequest(type, problemData, codeData = null) {
-  let systemPrompt = SYSTEM_PROMPTS.base;
-  let userPrompt = '';
-
   const problemContext = `
 Problem: ${problemData.title}
 
@@ -219,69 +157,18 @@ Constraints:
 ${problemData.constraints?.join('\n') || 'Not specified'}
 `.trim();
 
-  switch (type) {
-    case 'explain':
-      systemPrompt = SYSTEM_PROMPTS.problemExplanation;
-      userPrompt = problemContext;
-      break;
-
-    case 'constraints':
-      systemPrompt = SYSTEM_PROMPTS.constraintAnalysis;
-      userPrompt = problemContext;
-      break;
-
-    case 'complexity':
-      systemPrompt = SYSTEM_PROMPTS.expectedComplexity;
-      userPrompt = problemContext;
-      break;
-
-    case 'hint1':
-      systemPrompt = SYSTEM_PROMPTS.hint1;
-      userPrompt = problemContext;
-      break;
-
-    case 'hint2':
-      systemPrompt = SYSTEM_PROMPTS.hint2;
-      userPrompt = problemContext;
-      break;
-
-    case 'hint3':
-      systemPrompt = SYSTEM_PROMPTS.hint3;
-      userPrompt = problemContext;
-      break;
-
-    case 'ideas':
-      systemPrompt = SYSTEM_PROMPTS.ideas;
-      userPrompt = problemContext;
-      break;
-
-    case 'analyze':
-      systemPrompt = SYSTEM_PROMPTS.codeAnalysis;
-      userPrompt = `${problemContext}
-
-User's Code (${codeData?.language || 'unknown'}):
-\`\`\`
-${codeData?.content || 'No code provided'}
-\`\`\``;
-      break;
-
-    case 'stuck':
-      systemPrompt = SYSTEM_PROMPTS.stuck;
-      userPrompt = codeData?.content 
-        ? `${problemContext}
-
-User's Current Attempt:
-\`\`\`
-${codeData.content}
-\`\`\``
-        : problemContext;
-      break;
-
-    default:
-      return { success: false, error: 'Unknown request type' };
+  if (!SYSTEM_PROMPTS[type] && type !== 'analyze' && type !== 'stuck') {
+    return { success: false, error: 'Unknown request type' };
   }
 
-  return await callGeminiAPI(systemPrompt, userPrompt);
+  const promptHeader = `Request Type: ${type}\n\nGuidance:\n${SYSTEM_PROMPTS[type] || SYSTEM_PROMPTS.base}`;
+  const payload = {
+    problem: `${promptHeader}\n\n${problemContext}`,
+    code: codeData?.content || 'No code provided',
+    language: codeData?.language || 'unknown'
+  };
+
+  return await callBackendAPI(payload);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -295,16 +182,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
     try {
       switch (message.type) {
-        case 'SET_API_KEY':
-          await setApiKey(message.apiKey);
-          sendResponse({ success: true });
-          break;
-
-        case 'GET_API_KEY':
-          const key = await getApiKey();
-          sendResponse({ apiKey: key ? '••••••••' : null, hasKey: !!key });
-          break;
-
         case 'AI_REQUEST':
           const result = await handleAIRequest(
             message.requestType,
