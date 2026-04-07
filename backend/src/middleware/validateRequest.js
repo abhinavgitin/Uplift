@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { AppError } from '../utils/appError.js';
 
 const solveSchema = z.object({
+  type: z.string().min(1, 'type is required'),
   problem: z.string().min(1, 'problem is required'),
   code: z.string().min(1, 'code is required'),
   language: z.string().min(1, 'language is required')

@@ -1,25 +1,18 @@
-import { env } from '../config/env.js';
-import { solveWithOpenAI } from '../providers/openaiProvider.js';
-import { solveWithGemini } from '../providers/geminiProvider.js';
-import { solveWithGrok } from '../providers/grokProvider.js';
-import { AppError } from '../utils/appError.js';
-import { buildSolvePrompt } from '../utils/buildSolvePrompt.js';
-
-const providers = {
-  openai: solveWithOpenAI,
-  gemini: solveWithGemini,
-  grok: solveWithGrok
+const placeholderByType = {
+  explain: 'Explain response',
+  constraints: 'Constraints response',
+  complexity: 'Complexity response',
+  hint: 'Hint response',
+  hint1: 'Hint response',
+  hint2: 'Hint response',
+  hint3: 'Hint response',
+  ideas: 'Ideas response',
+  analyze: 'Analyze response',
+  stuck: 'Stuck response'
 };
 
-export async function solveProblem(payload, providerOverride) {
-  const provider = (providerOverride || env.defaultProvider || '').toLowerCase();
-  const selectedProvider = providers[provider];
-
-  if (!selectedProvider) {
-    throw new AppError(`Unsupported AI provider: ${provider}`, 400, 'UNSUPPORTED_PROVIDER');
-  }
-
-  const prompt = buildSolvePrompt(payload);
-  const result = await selectedProvider(prompt);
-  return result;
+export async function solveProblem(payload, _providerOverride) {
+  const requestType = (payload.type || '').toLowerCase();
+  const response = placeholderByType[requestType] || `${payload.type} response`;
+  return response;
 }
