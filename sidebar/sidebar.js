@@ -19,6 +19,7 @@
       2: null,
       3: null
     },
+    activeHint: null,    // Single open hint panel in Guidance > Hints
     loading: {},
     activeSection: null, // Single open accordion section
     activeTab: 'hints',   // Active tab in guidance section
@@ -365,36 +366,52 @@
   }
 
   async function handleHint(level) {
-    // Check if already revealed
-    if (state.hints[level]) {
+    const levelKey = String(level);
+
+    // Toggle behavior: clicking the same hint closes it
+    if (state.activeHint === levelKey) {
+      setActiveHint(null);
       return;
     }
-    
+
+    // If hint content is already loaded, just switch active panel
+    if (state.hints[level]) {
+      setActiveHint(levelKey);
+      return;
+    }
+
+    // Close any currently open hint while loading a new one
+    setActiveHint(null);
+
     const loadingEl = document.getElementById('hintsLoading');
     if (loadingEl) loadingEl.classList.remove('hidden');
-    
+
     try {
       const result = await requestAI(`hint${level}`);
-      
+
       if (result.success) {
         state.hints[level] = result.content;
-        
-        // Mark button as revealed
+
         const btn = document.querySelector(`[data-hint="${level}"]`);
+        const hintLabel = btn?.querySelector('.hint-label')?.textContent?.trim() || `Hint ${level}`;
         if (btn) btn.classList.add('revealed');
-        
-        // Add hint card
+
         const hintCard = document.createElement('div');
         hintCard.className = 'hint-card';
+        hintCard.dataset.hintPanel = levelKey;
         hintCard.innerHTML = `
-          <div class="hint-card-header">
-            <span>Level ${level}</span>
-            <span>•</span>
-            <span>${level === 1 ? 'Direction' : level === 2 ? 'Approach' : 'Logic'}</span>
+          <div class="hint-card-inner">
+            <div class="hint-card-header">
+              <span>Level ${level}</span>
+              <span>•</span>
+              <span>${hintLabel}</span>
+            </div>
+            <div class="hint-card-body">${formatContent(result.content)}</div>
           </div>
-          <div class="hint-card-body">${formatContent(result.content)}</div>
         `;
         elements.hintsContainer.appendChild(hintCard);
+
+        setActiveHint(levelKey);
       } else {
         console.error('Hint error:', result.error);
       }
@@ -403,6 +420,20 @@
     }
     
     if (loadingEl) loadingEl.classList.add('hidden');
+  }
+
+  function setActiveHint(levelOrNull) {
+    const activeLevel = levelOrNull ? String(levelOrNull) : null;
+
+    document.querySelectorAll('[data-hint]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.hint === activeLevel);
+    });
+
+    elements.hintsContainer?.querySelectorAll('.hint-card').forEach(card => {
+      card.classList.toggle('open', card.dataset.hintPanel === activeLevel);
+    });
+
+    state.activeHint = activeLevel;
   }
 
   async function handleIdeas() {
