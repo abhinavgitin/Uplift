@@ -218,28 +218,19 @@ body.splash-exit .splash-matrix {
 .logo {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
   min-height: 32px;
   flex: 1;
   min-width: 0;
   overflow: visible;
 }
 
-.logo-image {
-  height: 30px;
-  width: auto;
-  max-width: 140px;
-  display: block;
-  object-fit: contain;
-  flex-shrink: 0;
-}
-
-.logo-fallback {
+.uplift-brand {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
   font-size: 1rem;
-  font-weight: 700;
-  letter-spacing: -0.5px;
-  color: var(--text-primary);
-  font-family: var(--font-sans);
+  color: inherit;
+  letter-spacing: 0.02em;
+  text-decoration: none;
 }
 
 .header-actions {
