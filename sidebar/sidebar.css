@@ -93,6 +93,105 @@ html, body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+body {
+  position: relative;
+  overflow: hidden;
+}
+
+body.splash-pending .sidebar {
+  visibility: hidden;
+}
+
+body.splash-complete .sidebar {
+  visibility: visible;
+}
+
+.splash-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 14, 30, 0.72);
+  backdrop-filter: blur(12px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.6s ease;
+}
+
+body.splash-running .splash-overlay {
+  opacity: 1;
+}
+
+body.splash-exit .splash-overlay {
+  opacity: 0;
+}
+
+.splash-matrix {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  overflow: hidden;
+}
+
+body.splash-running .splash-matrix {
+  opacity: 0.56;
+}
+
+body.splash-exit .splash-matrix {
+  opacity: 0;
+}
+
+.matrix-column {
+  justify-self: center;
+  width: 16px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 13px;
+  letter-spacing: 1px;
+  color: rgba(59, 130, 246, 0.82);
+  text-shadow: 0 0 8px rgba(59, 130, 246, 0.22);
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  user-select: none;
+  will-change: transform, opacity;
+  animation: matrixFall linear infinite;
+}
+
+.matrix-column:nth-child(1) { animation-duration: 3.2s; animation-delay: -1.3s; }
+.matrix-column:nth-child(2) { animation-duration: 3.5s; animation-delay: -2.2s; }
+.matrix-column:nth-child(3) { animation-duration: 3.3s; animation-delay: -0.8s; }
+.matrix-column:nth-child(4) { animation-duration: 3.7s; animation-delay: -1.9s; }
+.matrix-column:nth-child(5) { animation-duration: 3.4s; animation-delay: -2.5s; }
+.matrix-column:nth-child(6) { animation-duration: 3.6s; animation-delay: -1.1s; }
+.matrix-column:nth-child(7) { animation-duration: 3.25s; animation-delay: -2.9s; }
+.matrix-column:nth-child(8) { animation-duration: 3.75s; animation-delay: -1.7s; }
+.matrix-column:nth-child(9) { animation-duration: 3.45s; animation-delay: -2.1s; }
+.matrix-column:nth-child(10) { animation-duration: 3.65s; animation-delay: -1.4s; }
+.matrix-column:nth-child(11) { animation-duration: 3.3s; animation-delay: -2.6s; }
+.matrix-column:nth-child(12) { animation-duration: 3.7s; animation-delay: -1.8s; }
+
+@keyframes matrixFall {
+  0% {
+    transform: translateY(-115%);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  84% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(115%);
+    opacity: 0;
+  }
+}
+
 /* ─── Sidebar Container ─── */
 .sidebar {
   width: var(--sidebar-width);
