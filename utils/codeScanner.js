@@ -1,5 +1,5 @@
 /**
- * AlgoLens - Code Pattern Scanner
+ * UpLift - Code Pattern Scanner
  * Detects patterns in user code for complexity estimation
  */
 

@@ -1,5 +1,5 @@
 /**
- * AlgoLens - Content Script
+ * UpLift - Content Script
  * Runs on LeetCode problem pages
  * Handles: FAB button, sidebar injection, DOM extraction, message passing
  */
@@ -11,7 +11,7 @@
   if (window.__ALGOLENS_INJECTED__) return;
   window.__ALGOLENS_INJECTED__ = true;
 
-  console.log('🔍 AlgoLens: Initializing...');
+  console.log('🔍 UpLift: Initializing...');
 
   // ═══════════════════════════════════════════════════════════════
   // Constants
@@ -211,7 +211,7 @@
       }
 
     } catch (error) {
-      console.error('AlgoLens: Error extracting problem data:', error);
+      console.error('UpLift: Error extracting problem data:', error);
     }
 
     return data;
@@ -251,7 +251,7 @@
       }
 
     } catch (error) {
-      console.error('AlgoLens: Error extracting code:', error);
+      console.error('UpLift: Error extracting code:', error);
     }
 
     return code;
@@ -266,7 +266,7 @@
     
     const fab = document.createElement('button');
     fab.id = 'algolens-fab';
-    fab.title = 'Open AlgoLens';
+    fab.title = 'Open UpLift';
     fab.innerHTML = `
       <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
         <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8-8-8z"/>
@@ -284,7 +284,7 @@
       fab.classList.remove('pulse');
     }, 5000);
     
-    console.log('🔍 AlgoLens: FAB button created');
+    console.log('🔍 UpLift: FAB button created');
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -313,7 +313,7 @@
     document.body.appendChild(container);
     
     state.sidebarInjected = true;
-    console.log('🔍 AlgoLens: Sidebar injected');
+    console.log('🔍 UpLift: Sidebar injected');
 
     // Wait for iframe to load, then send initial data
     iframe.onload = () => {
@@ -333,7 +333,7 @@
     if (container) container.classList.add('visible');
     if (fab) {
       fab.classList.add('sidebar-open');
-      fab.title = 'Close AlgoLens';
+      fab.title = 'Close UpLift';
     }
     if (overlay) overlay.classList.add('visible');
     
@@ -353,7 +353,7 @@
     if (container) container.classList.remove('visible');
     if (fab) {
       fab.classList.remove('sidebar-open');
-      fab.title = 'Open AlgoLens';
+      fab.title = 'Open UpLift';
     }
     if (overlay) overlay.classList.remove('visible');
     
@@ -390,7 +390,7 @@
       }
     }, '*');
 
-    console.log('🔍 AlgoLens: Data sent to sidebar', { problemData, codeData });
+    console.log('🔍 UpLift: Data sent to sidebar', { problemData, codeData });
   }
 
   // Listen for messages from sidebar
@@ -492,7 +492,7 @@
   
   function init() {
     if (!isLeetCodeProblemPage()) {
-      console.log('🔍 AlgoLens: Not a problem page, skipping');
+      console.log('🔍 UpLift: Not a problem page, skipping');
       return;
     }
 
@@ -519,7 +519,7 @@
     // Start observing code changes after a delay
     setTimeout(observeCodeChanges, 2000);
     
-    console.log('🔍 AlgoLens: UI initialized (FAB mode)');
+    console.log('🔍 UpLift: UI initialized (FAB mode)');
   }
 
   // Start

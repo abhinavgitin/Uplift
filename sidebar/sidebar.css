@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════
-   AlgoLens Sidebar Styles
+   UpLift Sidebar Styles
    Dark + Purple Premium Theme with Smooth Animations
    ═══════════════════════════════════════════════════════════════ */
 
@@ -120,21 +120,22 @@ html, body {
   display: flex;
   align-items: center;
   gap: var(--space-3);
+  min-height: 32px;
+  flex: 1;
+  min-width: 0;
+  overflow: visible;
 }
 
-.logo-icon {
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--accent-gradient);
-  border-radius: var(--radius-md);
-  font-size: 1rem;
-  box-shadow: var(--shadow-glow);
+.logo-image {
+  height: 30px;
+  width: auto;
+  max-width: 140px;
+  display: block;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
-.logo-text {
+.logo-fallback {
   font-size: 1rem;
   font-weight: 700;
   letter-spacing: -0.5px;

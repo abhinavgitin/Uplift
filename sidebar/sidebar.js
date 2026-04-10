@@ -1,5 +1,5 @@
 /**
- * AlgoLens - Sidebar JavaScript
+ * UpLift - Sidebar JavaScript
  * Handles: UI interactions, accordion, tabs, state management, API communication
  */
 
@@ -52,7 +52,9 @@
     stuckContent: document.getElementById('stuckContent'),
     
     // Modal
-    settingsModal: document.getElementById('settingsModal')
+    settingsModal: document.getElementById('settingsModal'),
+    sidebarLogoImage: document.getElementById('sidebarLogoImage'),
+    sidebarLogoFallback: document.getElementById('sidebarLogoFallback')
   };
 
   // ═══════════════════════════════════════════════════════════════
@@ -578,6 +580,12 @@
   // ═══════════════════════════════════════════════════════════════
   
   function setupEventListeners() {
+    // Sidebar logo fallback
+    elements.sidebarLogoImage?.addEventListener('error', () => {
+      elements.sidebarLogoImage.classList.add('hidden');
+      elements.sidebarLogoFallback?.classList.remove('hidden');
+    });
+
     // Accordion toggle (single open)
     document.querySelectorAll('.card-header').forEach(header => {
       header.addEventListener('click', () => {
@@ -723,7 +731,7 @@
   // ═══════════════════════════════════════════════════════════════
   
   function init() {
-    console.log('🔍 AlgoLens Sidebar: Initializing...');
+    console.log('🔍 UpLift Sidebar: Initializing...');
     
     // Setup event listeners
     setupEventListeners();
@@ -737,7 +745,7 @@
     // Request initial data
     window.parent.postMessage({ type: 'ALGOLENS_REQUEST_DATA' }, '*');
     
-    console.log('🔍 AlgoLens Sidebar: Ready');
+    console.log('🔍 UpLift Sidebar: Ready');
   }
 
   // Start when DOM is ready
