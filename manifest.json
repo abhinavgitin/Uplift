@@ -40,6 +40,17 @@
   ],
   
   "action": {
-    "default_title": "Toggle AlgoLens"
+    "default_title": "Toggle UpLift",
+    "default_icon": {
+      "16": "assets/icons/icon16.svg",
+      "48": "assets/icons/icon48.svg",
+      "128": "assets/icons/icon128.svg"
+    }
+  },
+
+  "icons": {
+    "16": "assets/icons/icon16.svg",
+    "48": "assets/icons/icon48.svg",
+    "128": "assets/icons/icon128.svg"
   }
 }

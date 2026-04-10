@@ -1,7 +1,7 @@
 ---
 
 ## 📌 Overview
-AlgoLens is a Manifest V3 Chrome extension for LeetCode guidance.  
+UpLift is a Manifest V3 Chrome extension for LeetCode guidance.  
 It now supports a production-style architecture where AI calls are routed through a secure Node.js backend so API keys are never exposed in extension code.
 
 ---

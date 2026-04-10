@@ -1,5 +1,5 @@
 /**
- * AlgoLens - Sidebar JavaScript
+ * UpLift - Sidebar JavaScript
  * Handles: UI interactions, accordion, tabs, state management, API communication
  */
 
@@ -53,8 +53,48 @@
     stuckContent: document.getElementById('stuckContent'),
     
     // Modal
-    settingsModal: document.getElementById('settingsModal')
+    settingsModal: document.getElementById('settingsModal'),
+    sidebarLogoImage: document.getElementById('sidebarLogoImage'),
+    sidebarLogoFallback: document.getElementById('sidebarLogoFallback'),
+    splashOverlay: document.getElementById('splashOverlay')
   };
+
+  // ═══════════════════════════════════════════════════════════════
+  // Splash Screen
+  // ═══════════════════════════════════════════════════════════════
+
+  function completeSplashImmediately() {
+    document.body.classList.remove('splash-pending', 'splash-running', 'splash-exit');
+    document.body.classList.add('splash-complete');
+    if (elements.splashOverlay) {
+      elements.splashOverlay.classList.add('hidden');
+    }
+  }
+
+  function runSplashAnimation() {
+    if (!elements.splashOverlay) {
+      completeSplashImmediately();
+      return;
+    }
+
+    document.body.classList.add('splash-running');
+
+    // Timeline:
+    // 0.0s–0.3s: overlay appears with blur
+    // 0.3s–3.0s: matrix rain plays
+    // 3.0s–3.6s: overlay fades out
+    // 3.6s+: sidebar fully revealed
+    const exitStartDelay = 3000;
+    const doneDelay = 3600;
+
+    setTimeout(() => {
+      document.body.classList.add('splash-exit');
+    }, exitStartDelay);
+
+    setTimeout(() => {
+      completeSplashImmediately();
+    }, doneDelay);
+  }
 
   // ═══════════════════════════════════════════════════════════════
   // Utilities
@@ -609,6 +649,12 @@
   // ═══════════════════════════════════════════════════════════════
   
   function setupEventListeners() {
+    // Sidebar logo fallback
+    elements.sidebarLogoImage?.addEventListener('error', () => {
+      elements.sidebarLogoImage.classList.add('hidden');
+      elements.sidebarLogoFallback?.classList.remove('hidden');
+    });
+
     // Accordion toggle (single open)
     document.querySelectorAll('.card-header').forEach(header => {
       header.addEventListener('click', () => {
@@ -754,8 +800,8 @@
   // ═══════════════════════════════════════════════════════════════
   
   function init() {
-    console.log('🔍 AlgoLens Sidebar: Initializing...');
-    
+    console.log('🔍 UpLift Sidebar: Initializing...');
+
     // Setup event listeners
     setupEventListeners();
     
@@ -767,8 +813,10 @@
     
     // Request initial data
     window.parent.postMessage({ type: 'ALGOLENS_REQUEST_DATA' }, '*');
+
+    runSplashAnimation();
     
-    console.log('🔍 AlgoLens Sidebar: Ready');
+    console.log('🔍 UpLift Sidebar: Ready');
   }
 
   // Start when DOM is ready

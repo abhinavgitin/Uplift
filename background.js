@@ -1,5 +1,5 @@
 /**
- * AlgoLens - Background Service Worker
+ * UpLift - Background Service Worker
  * Handles: API calls, message passing, extension lifecycle
  */
 
@@ -17,7 +17,7 @@ const CONFIG = {
 
 async function callBackendAPI(payload) {
   try {
-    console.log('AlgoLens Backend API request start:', {
+    console.log('UpLift Backend API request start:', {
       url: CONFIG.BACKEND_SOLVE_ENDPOINT,
       type: payload?.type
     });
@@ -31,7 +31,7 @@ async function callBackendAPI(payload) {
       body: JSON.stringify(payload)
     });
 
-    console.log('AlgoLens Backend API response received:', {
+    console.log('UpLift Backend API response received:', {
       status: response.status,
       statusText: response.statusText,
       ok: response.ok
@@ -39,7 +39,7 @@ async function callBackendAPI(payload) {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({}));
-      console.error('AlgoLens Backend API non-OK response:', {
+      console.error('UpLift Backend API non-OK response:', {
         status: response.status,
         statusText: response.statusText,
         error
@@ -65,7 +65,7 @@ async function callBackendAPI(payload) {
     };
 
   } catch (error) {
-    console.error('AlgoLens Backend API fetch failed:', {
+    console.error('UpLift Backend API fetch failed:', {
       message: error?.message,
       name: error?.name,
       stack: error?.stack,
@@ -110,7 +110,7 @@ ${problemData.constraints?.join('\n') || 'Not specified'}
 // ═══════════════════════════════════════════════════════════════
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log('AlgoLens Background: Received message', message.type);
+  console.log('UpLift Background: Received message', message.type);
 
   // Handle async responses
   (async () => {
@@ -133,7 +133,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           sendResponse({ error: 'Unknown message type' });
       }
     } catch (error) {
-      console.error('AlgoLens Background Error:', error);
+      console.error('UpLift Background Error:', error);
       sendResponse({ success: false, error: error.message });
     }
   })();
@@ -152,4 +152,4 @@ chrome.action.onClicked.addListener((tab) => {
   }
 });
 
-console.log('🔍 AlgoLens: Background service worker initialized');
+console.log('🔍 UpLift: Background service worker initialized');
