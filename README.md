@@ -78,33 +78,6 @@ backend/
 
 ---
 
-## ⚙️ Backend Setup
-
-```bash
-cd backend
-npm install
-cp .env.example .env
-```
-
-Set your environment variables in `.env`:
-
-```env
-NODE_ENV=development
-PORT=8080
-CORS_ORIGIN=chrome-extension://<your-extension-id>
-AI_PROVIDER=openai
-RATE_LIMIT_WINDOW_MS=60000
-RATE_LIMIT_MAX_REQUESTS=60
-
-OPENAI_API_KEY=...
-OPENAI_MODEL=gpt-4.1-mini
-
-GEMINI_API_KEY=...
-GEMINI_MODEL=gemini-2.0-flash
-
-GROK_API_KEY=...
-GROK_MODEL=grok-beta
-```
 
 Run backend:
 
