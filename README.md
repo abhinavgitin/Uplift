@@ -8,7 +8,7 @@ It now supports a production-style architecture where AI calls are routed throug
 
 ## ✨ Features
 - ✅ Context-aware LeetCode sidebar UI.
-- ✅ Backend API proxy for AI inference (`POST /api/ai/solve`).
+- ✅ Backend API proxy for AI inference (`POST /api/ai`).
 - ✅ Multi-provider support via pluggable service layer (OpenAI, Gemini, Grok).
 - ✅ Environment-variable secret management with `.env`.
 - ✅ Modular backend structure for growth (routes, controllers, services, providers, middleware).
@@ -92,9 +92,12 @@ Set your environment variables in `.env`:
 NODE_ENV=development
 PORT=8080
 CORS_ORIGIN=chrome-extension://<your-extension-id>
-AI_PROVIDER=openai
+AI_PROVIDER=gemini
 RATE_LIMIT_WINDOW_MS=60000
 RATE_LIMIT_MAX_REQUESTS=60
+AI_REQUEST_TIMEOUT_MS=20000
+AI_RETRY_ATTEMPTS=2
+AI_RETRY_BASE_DELAY_MS=400
 
 OPENAI_API_KEY=...
 OPENAI_MODEL=gpt-4.1-mini
@@ -121,8 +124,14 @@ GET http://localhost:8080/health
 Solve endpoint:
 
 ```bash
-POST http://localhost:8080/api/ai/solve
+POST http://localhost:8080/api/ai
 Content-Type: application/json
+```
+
+Backward compatibility route also works:
+
+```bash
+POST http://localhost:8080/api/ai/solve
 ```
 
 Body:

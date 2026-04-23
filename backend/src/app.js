@@ -9,6 +9,8 @@ import { healthRoutes } from './routes/healthRoutes.js';
 import { aiRoutes } from './routes/aiRoutes.js';
 
 const app = express();
+app.disable('x-powered-by');
+app.set('trust proxy', true);
 
 app.use(helmet());
 app.use(

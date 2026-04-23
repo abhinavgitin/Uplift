@@ -2,11 +2,24 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const requiredInProd = ['PORT', 'AI_PROVIDER'];
+const supportedProviders = ['openai', 'gemini', 'grok', 'deepseek'];
+const defaultProvider = (process.env.AI_PROVIDER || 'gemini').toLowerCase();
 
-for (const key of requiredInProd) {
-  if (!process.env[key] && process.env.NODE_ENV === 'production') {
-    throw new Error(`Missing required environment variable: ${key}`);
+if (process.env.NODE_ENV === 'production') {
+  if (!supportedProviders.includes(defaultProvider)) {
+    throw new Error(`Unsupported AI_PROVIDER: ${defaultProvider}`);
+  }
+
+  const providerKeyMap = {
+    openai: 'OPENAI_API_KEY',
+    gemini: 'GEMINI_API_KEY',
+    grok: 'GROK_API_KEY',
+    deepseek: 'DEEPSEEK_API_KEY'
+  };
+
+  const keyName = providerKeyMap[defaultProvider];
+  if (!process.env[keyName]) {
+    throw new Error(`Missing required environment variable for provider ${defaultProvider}: ${keyName}`);
   }
 }
 
@@ -14,10 +27,15 @@ export const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: Number(process.env.PORT || 8080),
   corsOrigin: process.env.CORS_ORIGIN || '*',
-  defaultProvider: process.env.AI_PROVIDER || 'openai',
+  defaultProvider,
   rateLimit: {
     windowMs: Number(process.env.RATE_LIMIT_WINDOW_MS || 60_000),
     max: Number(process.env.RATE_LIMIT_MAX_REQUESTS || 60)
+  },
+  ai: {
+    requestTimeoutMs: Number(process.env.AI_REQUEST_TIMEOUT_MS || 20_000),
+    retryAttempts: Number(process.env.AI_RETRY_ATTEMPTS || 2),
+    retryBaseDelayMs: Number(process.env.AI_RETRY_BASE_DELAY_MS || 400)
   },
   providers: {
     openai: {
@@ -31,6 +49,10 @@ export const env = {
     grok: {
       apiKey: process.env.GROK_API_KEY,
       model: process.env.GROK_MODEL || 'grok-beta'
+    },
+    deepseek: {
+      apiKey: process.env.DEEPSEEK_API_KEY,
+      model: process.env.DEEPSEEK_MODEL
     }
   }
 };

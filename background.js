@@ -8,73 +8,186 @@
 // ═══════════════════════════════════════════════════════════════
 
 const CONFIG = {
-  BACKEND_SOLVE_ENDPOINT: 'http://127.0.0.1:8080/api/ai/solve'
+  BACKEND_AI_ENDPOINT: 'http://localhost:8080/api/ai',
+  REQUEST_TIMEOUT_MS: 20_000,
+  RETRY_ATTEMPTS: 2,
+  RETRY_BASE_DELAY_MS: 350
 };
+
+const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
 
 // ═══════════════════════════════════════════════════════════════
 // Backend API Integration
 // ═══════════════════════════════════════════════════════════════
 
-async function callBackendAPI(payload) {
+function buildRequestId() {
+  return `uplift-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getRetryDelay(baseDelayMs, attempt) {
+  const jitterMs = Math.floor(Math.random() * 100);
+  return baseDelayMs * 2 ** (attempt - 1) + jitterMs;
+}
+
+async function fetchWithTimeout(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
-    console.log('UpLift Backend API request start:', {
-      url: CONFIG.BACKEND_SOLVE_ENDPOINT,
-      type: payload?.type
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal
     });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
-    const response = await fetch(CONFIG.BACKEND_SOLVE_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      credentials: 'omit',
-      body: JSON.stringify(payload)
-    });
+function normalizeBackendResponse(body) {
+  if (!body || body.success !== true) {
+    return null;
+  }
 
-    console.log('UpLift Backend API response received:', {
-      status: response.status,
-      statusText: response.statusText,
-      ok: response.ok
-    });
+  if (typeof body.data === 'string') {
+    return {
+      content: body.data,
+      meta: body.meta || null
+    };
+  }
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      console.error('UpLift Backend API non-OK response:', {
-        status: response.status,
-        statusText: response.statusText,
-        error
-      });
-      return {
-        success: false,
-        error: error?.error?.message || `Backend API error: ${response.status}`
-      };
+  if (typeof body?.data?.content === 'string') {
+    return {
+      content: body.data.content,
+      meta: body.meta || null
+    };
+  }
+
+  return null;
+}
+
+function normalizeBackendError(body, status) {
+  const message = body?.error?.message || `Backend API error (${status})`;
+  const code = body?.error?.code || `HTTP_${status}`;
+  const requestId = body?.error?.requestId || null;
+
+  return {
+    message,
+    code,
+    requestId
+  };
+}
+
+async function callBackendAPI(payload) {
+  const requestId = buildRequestId();
+
+  try {
+    for (let attempt = 1; attempt <= CONFIG.RETRY_ATTEMPTS; attempt += 1) {
+      try {
+        console.log(`[${requestId}] UpLift backend attempt ${attempt}/${CONFIG.RETRY_ATTEMPTS}`, {
+          type: payload?.type,
+          endpoint: CONFIG.BACKEND_AI_ENDPOINT
+        });
+
+        const response = await fetchWithTimeout(
+          CONFIG.BACKEND_AI_ENDPOINT,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-request-id': requestId
+            },
+            credentials: 'omit',
+            body: JSON.stringify(payload)
+          },
+          CONFIG.REQUEST_TIMEOUT_MS
+        );
+
+        const body = await response.json().catch(() => null);
+
+        if (!response.ok) {
+          const normalizedError = normalizeBackendError(body, response.status);
+          const shouldRetry = RETRYABLE_STATUS_CODES.has(response.status) && attempt < CONFIG.RETRY_ATTEMPTS;
+
+          if (shouldRetry) {
+            const delayMs = getRetryDelay(CONFIG.RETRY_BASE_DELAY_MS, attempt);
+            console.warn(
+              `[${requestId}] Retrying backend after HTTP ${response.status} in ${delayMs}ms`
+            );
+            await sleep(delayMs);
+            continue;
+          }
+
+          return {
+            success: false,
+            error: normalizedError.message,
+            code: normalizedError.code,
+            requestId: normalizedError.requestId || requestId
+          };
+        }
+
+        const normalizedResponse = normalizeBackendResponse(body);
+        if (!normalizedResponse) {
+          return {
+            success: false,
+            error: 'Invalid response format from backend',
+            code: 'BAD_BACKEND_RESPONSE',
+            requestId
+          };
+        }
+
+        return {
+          success: true,
+          content: normalizedResponse.content,
+          meta: {
+            ...(normalizedResponse.meta || {}),
+            requestId: normalizedResponse.meta?.requestId || requestId
+          }
+        };
+      } catch (error) {
+        const isTimeout = error?.name === 'AbortError';
+        const shouldRetry = isTimeout && attempt < CONFIG.RETRY_ATTEMPTS;
+
+        if (shouldRetry) {
+          const delayMs = getRetryDelay(CONFIG.RETRY_BASE_DELAY_MS, attempt);
+          console.warn(`[${requestId}] Request timed out, retrying in ${delayMs}ms`);
+          await sleep(delayMs);
+          continue;
+        }
+
+        return {
+          success: false,
+          error: isTimeout
+            ? 'Backend timed out. Please try again.'
+            : (error?.message || 'Backend network error occurred'),
+          code: isTimeout ? 'REQUEST_TIMEOUT' : 'NETWORK_ERROR',
+          requestId
+        };
     }
-
-    const data = await response.json();
-
-    if (!data?.success || !data?.data) {
-      return {
-        success: false,
-        error: 'No response from backend'
-      };
     }
 
     return {
-      success: true,
-      content: data.data
+      success: false,
+      error: 'Backend request failed after retries',
+      code: 'RETRY_EXHAUSTED',
+      requestId
     };
-
   } catch (error) {
     console.error('UpLift Backend API fetch failed:', {
       message: error?.message,
       name: error?.name,
       stack: error?.stack,
       payloadType: payload?.type,
-      endpoint: CONFIG.BACKEND_SOLVE_ENDPOINT
+      endpoint: CONFIG.BACKEND_AI_ENDPOINT
     });
+
     return {
       success: false,
-      error: error.message || 'Backend network error occurred'
+      error: error.message || 'Backend network error occurred',
+      code: 'NETWORK_ERROR'
     };
   }
 }
@@ -84,6 +197,13 @@ async function callBackendAPI(payload) {
 // ═══════════════════════════════════════════════════════════════
 
 async function handleAIRequest(type, problemData, codeData = null) {
+  if (!problemData?.title || !problemData?.description) {
+    return {
+      success: false,
+      error: 'Problem data is not available yet. Refresh the page and try again.'
+    };
+  }
+
   const normalizedType = (type || 'explain').toLowerCase();
   const problemContext = `
 Problem: ${problemData.title}
@@ -116,7 +236,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
     try {
       switch (message.type) {
-        case 'AI_REQUEST':
+        case 'AI_REQUEST': {
           const result = await handleAIRequest(
             message.requestType,
             message.problemData,
@@ -124,13 +244,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           );
           sendResponse(result);
           break;
+        }
 
-        case 'PING':
+        case 'PING': {
           sendResponse({ pong: true });
           break;
+        }
 
-        default:
+        default: {
           sendResponse({ error: 'Unknown message type' });
+        }
       }
     } catch (error) {
       console.error('UpLift Background Error:', error);
@@ -147,7 +270,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // ═══════════════════════════════════════════════════════════════
 
 chrome.action.onClicked.addListener((tab) => {
-  if (tab.url.includes('leetcode.com/problems/')) {
+  if (tab?.id && typeof tab.url === 'string' && tab.url.includes('leetcode.com/problems/')) {
     chrome.tabs.sendMessage(tab.id, { type: 'TOGGLE_SIDEBAR' });
   }
 });
