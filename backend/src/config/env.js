@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const supportedProviders = ['openai', 'gemini', 'grok', 'deepseek'];
+const supportedProviders = ['openai', 'gemini', 'grok', 'deepseek', 'openrouter'];
 const defaultProvider = (process.env.AI_PROVIDER || 'gemini').toLowerCase();
 
 if (process.env.NODE_ENV === 'production') {
@@ -14,7 +14,8 @@ if (process.env.NODE_ENV === 'production') {
     openai: 'OPENAI_API_KEY',
     gemini: 'GEMINI_API_KEY',
     grok: 'GROK_API_KEY',
-    deepseek: 'DEEPSEEK_API_KEY'
+    deepseek: 'DEEPSEEK_API_KEY',
+    openrouter: 'OPENROUTER_API_KEY'
   };
 
   const keyName = providerKeyMap[defaultProvider];
@@ -52,7 +53,11 @@ export const env = {
     },
     deepseek: {
       apiKey: process.env.DEEPSEEK_API_KEY,
-      model: process.env.DEEPSEEK_MODEL
+      model: process.env.DEEPSEEK_MODEL || 'deepseek-chat'
+    },
+    openrouter: {
+      apiKey: process.env.OPENROUTER_API_KEY,
+      model: process.env.OPENROUTER_MODEL || 'nvidia/nemotron-3-super-120b-a12b:free'
     }
   }
 };

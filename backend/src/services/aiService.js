@@ -3,6 +3,7 @@ import { solveWithGemini } from '../providers/geminiProvider.js';
 import { solveWithOpenAI } from '../providers/openaiProvider.js';
 import { solveWithGrok } from '../providers/grokProvider.js';
 import { solveWithDeepSeek } from '../providers/deepseekProvider.js';
+import { solveWithOpenRouter } from '../providers/openrouterProvider.js';
 import { AppError } from '../utils/appError.js';
 import { buildSolvePrompt } from '../utils/buildSolvePrompt.js';
 import { logger } from '../utils/logger.js';
@@ -11,7 +12,8 @@ const providerHandlers = {
   gemini: solveWithGemini,
   openai: solveWithOpenAI,
   grok: solveWithGrok,
-  deepseek: solveWithDeepSeek
+  deepseek: solveWithDeepSeek,
+  openrouter: solveWithOpenRouter
 };
 
 function normalizeProvider(providerName) {

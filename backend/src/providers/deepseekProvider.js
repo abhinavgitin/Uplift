@@ -2,6 +2,7 @@ import { env } from '../config/env.js';
 import { AppError } from '../utils/appError.js';
 
 const RETRYABLE_UPSTREAM_STATUS = new Set([408, 429, 500, 502, 503, 504]);
+const DEFAULT_DEEPSEEK_MODEL = 'deepseek-chat';
 
 function trimErrorMessage(errorBody, maxLength = 400) {
   if (!errorBody) {
@@ -33,7 +34,7 @@ export async function solveWithDeepSeek(prompt) {
     throw new AppError('DeepSeek API key is not configured', 500, 'PROVIDER_CONFIG_ERROR');
   }
 
-  const endpoint = 'https://openrouter.ai/api/v1/chat/completions';
+  const endpoint = 'https://api.deepseek.com/chat/completions';
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), env.ai.requestTimeoutMs);
 
@@ -47,7 +48,7 @@ export async function solveWithDeepSeek(prompt) {
       },
       signal: controller.signal,
       body: JSON.stringify({
-        model: config.model || 'deepseek/deepseek-chat',
+        model: config.model || DEFAULT_DEEPSEEK_MODEL,
         messages: [{ role: 'user', content: prompt }],
         max_tokens: 80,
         temperature: 0.3
