@@ -1,9 +1,9 @@
 /**
- * AlgoLens Icon Generator
+ * UpLift Icon Generator
  * Run with: node generate-icons.js
  * Requires: npm install sharp (optional, for PNG generation)
  * 
- * Or manually convert the SVGs in the icons/ folder to PNG using any online tool.
+ * Or manually convert the SVGs in the assets/icons/ folder to PNG using any online tool.
  */
 
 const fs = require('fs');
@@ -35,21 +35,21 @@ const icons = [
   { size: 128, file: 'icon128.svg' }
 ];
 
-console.log('AlgoLens Icon Generator');
+console.log('UpLift Icon Generator');
 console.log('=======================\n');
 
 icons.forEach(({ size, file }) => {
   const svg = createSolidPng(size, 127, 191, 181);
-  const filePath = path.join(__dirname, 'icons', file);
+  const filePath = path.join(__dirname, 'assets', 'icons', file);
   fs.writeFileSync(filePath, svg);
   console.log(`✓ Generated ${file}`);
 });
 
 console.log('\n📌 To convert to PNG:');
 console.log('   1. Visit https://cloudconvert.com/svg-to-png');
-console.log('   2. Upload each SVG from the icons/ folder');
+console.log('   2. Upload each SVG from the assets/icons/ folder');
 console.log('   3. Download and save as icon16.png, icon48.png, icon128.png');
 console.log('\n   Or use ImageMagick:');
-console.log('   magick convert icon16.svg icon16.png');
-console.log('   magick convert icon48.svg icon48.png');
-console.log('   magick convert icon128.svg icon128.png');
+console.log('   magick convert assets/icons/icon16.svg assets/icons/icon16.png');
+console.log('   magick convert assets/icons/icon48.svg assets/icons/icon48.png');
+console.log('   magick convert assets/icons/icon128.svg assets/icons/icon128.png');

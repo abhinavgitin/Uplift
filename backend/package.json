@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Secure AI proxy backend for AlgoLens Chrome extension",
+  "description": "Secure AI proxy backend for UpLift Chrome extension",
   "main": "src/server.js",
   "scripts": {
     "dev": "nodemon src/server.js",

@@ -2,6 +2,7 @@ import { env } from '../config/env.js';
 import { AppError } from '../utils/appError.js';
 
 const RETRYABLE_UPSTREAM_STATUS = new Set([408, 429, 500, 502, 503, 504]);
+const DEFAULT_DEEPSEEK_MODEL = 'deepseek-chat';
 
 function trimErrorMessage(errorBody, maxLength = 400) {
   if (!errorBody) {
@@ -10,25 +11,30 @@ function trimErrorMessage(errorBody, maxLength = 400) {
   return errorBody.length > maxLength ? `${errorBody.slice(0, maxLength)}...` : errorBody;
 }
 
-function extractGeminiText(payload) {
-  const parts = payload?.candidates?.[0]?.content?.parts;
-  if (!Array.isArray(parts) || parts.length === 0) {
-    return '';
+function extractDeepSeekText(payload) {
+  const content = payload?.choices?.[0]?.message?.content;
+
+  if (typeof content === 'string') {
+    return content.trim();
   }
 
-  return parts
-    .map((part) => part?.text || '')
-    .join('\n')
-    .trim();
+  if (Array.isArray(content)) {
+    return content
+      .map((part) => (typeof part === 'string' ? part : part?.text || ''))
+      .join('\n')
+      .trim();
+  }
+
+  return '';
 }
 
-export async function solveWithGemini(prompt) {
-  const config = env.providers.gemini;
+export async function solveWithDeepSeek(prompt) {
+  const config = env.providers.deepseek;
   if (!config.apiKey) {
-    throw new AppError('Gemini API key is not configured', 500, 'PROVIDER_CONFIG_ERROR');
+    throw new AppError('DeepSeek API key is not configured', 500, 'PROVIDER_CONFIG_ERROR');
   }
 
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent`;
+  const endpoint = 'https://api.deepseek.com/chat/completions';
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), env.ai.requestTimeoutMs);
 
@@ -38,22 +44,21 @@ export async function solveWithGemini(prompt) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-goog-api-key': config.apiKey
+        Authorization: `Bearer ${config.apiKey}`
       },
       signal: controller.signal,
       body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: prompt }]
-          }
-        ]
+        model: config.model || DEFAULT_DEEPSEEK_MODEL,
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 80,
+        temperature: 0.3
       })
     });
   } catch (error) {
     if (error?.name === 'AbortError') {
-      throw new AppError('Gemini request timed out', 504, 'PROVIDER_TIMEOUT');
+      throw new AppError('DeepSeek request timed out', 504, 'PROVIDER_TIMEOUT');
     }
-    throw new AppError(`Gemini network error: ${error.message}`, 502, 'PROVIDER_NETWORK_ERROR');
+    throw new AppError(`DeepSeek network error: ${error.message}`, 502, 'PROVIDER_NETWORK_ERROR');
   } finally {
     clearTimeout(timeoutId);
   }
@@ -68,17 +73,17 @@ export async function solveWithGemini(prompt) {
         : 502;
 
     throw new AppError(
-      `Gemini request failed (${response.status})${providerMessage ? `: ${providerMessage}` : ''}`,
+      `DeepSeek request failed (${response.status})${providerMessage ? `: ${providerMessage}` : ''}`,
       statusCode,
       'PROVIDER_REQUEST_FAILED'
     );
   }
 
   const data = await response.json();
-  const outputText = extractGeminiText(data);
+  const outputText = extractDeepSeekText(data);
 
   if (!outputText.trim()) {
-    throw new AppError('Gemini returned an empty response', 502, 'EMPTY_PROVIDER_RESPONSE');
+    throw new AppError('DeepSeek returned an empty response', 502, 'EMPTY_PROVIDER_RESPONSE');
   }
 
   return outputText;

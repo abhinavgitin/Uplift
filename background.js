@@ -1,5 +1,5 @@
 /**
- * AlgoLens - Background Service Worker
+ * UpLift - Background Service Worker
  * Handles: API calls, message passing, extension lifecycle
  */
 
@@ -8,145 +8,203 @@
 // ═══════════════════════════════════════════════════════════════
 
 const CONFIG = {
-  BACKEND_SOLVE_ENDPOINT: 'http://localhost:8080/api/ai/solve'
+  BACKEND_AI_ENDPOINT: 'http://localhost:8080/api/ai',
+  REQUEST_TIMEOUT_MS: 20_000,
+  RETRY_ATTEMPTS: 2,
+  RETRY_BASE_DELAY_MS: 350
 };
+
+const RETRYABLE_STATUS_CODES = new Set([408, 429, 500, 502, 503, 504]);
 
 // ═══════════════════════════════════════════════════════════════
 // Backend API Integration
 // ═══════════════════════════════════════════════════════════════
 
-async function callBackendAPI(payload) {
+function buildRequestId() {
+  return `uplift-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getRetryDelay(baseDelayMs, attempt) {
+  const jitterMs = Math.floor(Math.random() * 100);
+  return baseDelayMs * 2 ** (attempt - 1) + jitterMs;
+}
+
+async function fetchWithTimeout(url, options, timeoutMs) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
-    const response = await fetch(CONFIG.BACKEND_SOLVE_ENDPOINT, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal
     });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({}));
-      return {
-        success: false,
-        error: error?.error?.message || `Backend API error: ${response.status}`
-      };
-    }
-
-    const data = await response.json();
-
-    if (!data?.success || !data?.data) {
-      return {
-        success: false,
-        error: 'No response from backend'
-      };
-    }
-
-    return {
-      success: true,
-      content: data.data
-    };
-
-  } catch (error) {
-    console.error('AlgoLens Backend API Error:', error);
-    return {
-      success: false,
-      error: error.message || 'Backend network error occurred'
-    };
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// Prompt Templates
-// ═══════════════════════════════════════════════════════════════
+function normalizeBackendResponse(body) {
+  if (!body || body.success !== true) {
+    return null;
+  }
 
-const SYSTEM_PROMPTS = {
-  base: `You are AlgoLens, a thinking assistant for LeetCode problems.
-Your role is to GUIDE the user's thinking, NOT to provide solutions.
+  if (typeof body.data === 'string') {
+    return {
+      content: body.data,
+      meta: body.meta || null
+    };
+  }
 
-CRITICAL RULES:
-- NEVER provide complete code solutions
-- NEVER write full implementations
-- Keep responses concise and structured
-- Use bullet points and clear formatting
-- Focus on building understanding
-- Encourage independent thinking`,
+  if (typeof body?.data?.content === 'string') {
+    return {
+      content: body.data.content,
+      meta: body.meta || null
+    };
+  }
 
-  problemExplanation: `You are AlgoLens, explaining a LeetCode problem.
-Simplify the problem statement in plain English.
-Highlight the KEY requirements and what exactly needs to be computed/returned.
-Do NOT suggest any approach or solution - just clarify the problem.
-Keep it under 150 words.`,
+  return null;
+}
 
-  constraintAnalysis: `You are AlgoLens, analyzing problem constraints.
-Explain what each constraint means for the solution approach.
-Translate numbers into complexity implications (e.g., n ≤ 10^5 suggests O(n) or O(n log n)).
-Do NOT suggest specific algorithms - just explain what the constraints tell us.
-Keep it under 150 words.`,
+function normalizeBackendError(body, status) {
+  const message = body?.error?.message || `Backend API error (${status})`;
+  const code = body?.error?.code || `HTTP_${status}`;
+  const requestId = body?.error?.requestId || null;
 
-  expectedComplexity: `You are AlgoLens, determining expected complexity.
-Based on the constraints, determine the likely expected time and space complexity.
-Explain your reasoning briefly.
-Format:
-- Expected Time: O(?)
-- Expected Space: O(?)
-- Reasoning: (brief)
-Do NOT suggest algorithms or approaches.`,
+  return {
+    message,
+    code,
+    requestId
+  };
+}
 
-  hint1: `You are AlgoLens, giving a Level 1 hint (Direction).
-Give a subtle DIRECTION hint - just point the user toward the right category of thinking.
-Examples: "Consider what data structure allows O(1) lookups", "Think about what property of sorted arrays could help"
-ONE sentence maximum. Be vague but helpful.`,
+async function callBackendAPI(payload) {
+  const requestId = buildRequestId();
 
-  hint2: `You are AlgoLens, giving a Level 2 hint (Approach).
-Give an APPROACH hint - name the technique or pattern without explaining how to implement it.
-Examples: "This is a classic sliding window problem", "Consider using two pointers from opposite ends"
-TWO sentences maximum. Name the approach but don't explain the logic.`,
+  try {
+    for (let attempt = 1; attempt <= CONFIG.RETRY_ATTEMPTS; attempt += 1) {
+      try {
+        console.log(`[${requestId}] UpLift backend attempt ${attempt}/${CONFIG.RETRY_ATTEMPTS}`, {
+          type: payload?.type,
+          endpoint: CONFIG.BACKEND_AI_ENDPOINT
+        });
 
-  hint3: `You are AlgoLens, giving a Level 3 hint (Guided Logic).
-Give a GUIDED LOGIC hint - explain the high-level steps without code.
-Break down the logical approach into 3-4 steps.
-Do NOT write pseudocode or actual code.
-Keep it under 100 words.`,
+        const response = await fetchWithTimeout(
+          CONFIG.BACKEND_AI_ENDPOINT,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-request-id': requestId
+            },
+            credentials: 'omit',
+            body: JSON.stringify(payload)
+          },
+          CONFIG.REQUEST_TIMEOUT_MS
+        );
 
-  ideas: `You are AlgoLens, presenting solution approaches.
-List possible approaches from brute force to optimal:
+        const body = await response.json().catch(() => null);
 
-1. BRUTE FORCE: Name it, state complexity, one line about why it's slow
-2. BETTER: Name the optimization, state complexity, one line about the insight
-3. OPTIMAL: Name the approach, state complexity, one line about the key idea
+        if (!response.ok) {
+          const normalizedError = normalizeBackendError(body, response.status);
+          const shouldRetry = RETRYABLE_STATUS_CODES.has(response.status) && attempt < CONFIG.RETRY_ATTEMPTS;
 
-Do NOT explain implementations. Just name approaches and complexities.
-Keep each approach to 2 lines maximum.`,
+          if (shouldRetry) {
+            const delayMs = getRetryDelay(CONFIG.RETRY_BASE_DELAY_MS, attempt);
+            console.warn(
+              `[${requestId}] Retrying backend after HTTP ${response.status} in ${delayMs}ms`
+            );
+            await sleep(delayMs);
+            continue;
+          }
 
-  codeAnalysis: `You are AlgoLens, analyzing user code (not solving).
-Analyze the provided code and give:
-- Detected approach/pattern
-- Estimated time complexity
-- Estimated space complexity
-- 1-2 potential issues or inefficiencies (if any)
+          return {
+            success: false,
+            error: normalizedError.message,
+            code: normalizedError.code,
+            requestId: normalizedError.requestId || requestId
+          };
+        }
 
-Do NOT rewrite the code or provide fixes.
-Do NOT provide the correct solution.
-Just analyze what they have written.
-Keep it under 150 words.`,
+        const normalizedResponse = normalizeBackendResponse(body);
+        if (!normalizedResponse) {
+          return {
+            success: false,
+            error: 'Invalid response format from backend',
+            code: 'BAD_BACKEND_RESPONSE',
+            requestId
+          };
+        }
 
-  stuck: `You are AlgoLens, helping a stuck user.
-Provide:
-- 2-3 common mistakes people make on this problem
-- 1-2 edge cases they might be missing
-- A pattern reminder relevant to this problem type
+        return {
+          success: true,
+          content: normalizedResponse.content,
+          meta: {
+            ...(normalizedResponse.meta || {}),
+            requestId: normalizedResponse.meta?.requestId || requestId
+          }
+        };
+      } catch (error) {
+        const isTimeout = error?.name === 'AbortError';
+        const shouldRetry = isTimeout && attempt < CONFIG.RETRY_ATTEMPTS;
 
-Do NOT provide the solution.
-Keep it encouraging and guide them to think.
-Keep it under 150 words.`
-};
+        if (shouldRetry) {
+          const delayMs = getRetryDelay(CONFIG.RETRY_BASE_DELAY_MS, attempt);
+          console.warn(`[${requestId}] Request timed out, retrying in ${delayMs}ms`);
+          await sleep(delayMs);
+          continue;
+        }
+
+        return {
+          success: false,
+          error: isTimeout
+            ? 'Backend timed out. Please try again.'
+            : (error?.message || 'Backend network error occurred'),
+          code: isTimeout ? 'REQUEST_TIMEOUT' : 'NETWORK_ERROR',
+          requestId
+        };
+    }
+    }
+
+    return {
+      success: false,
+      error: 'Backend request failed after retries',
+      code: 'RETRY_EXHAUSTED',
+      requestId
+    };
+  } catch (error) {
+    console.error('UpLift Backend API fetch failed:', {
+      message: error?.message,
+      name: error?.name,
+      stack: error?.stack,
+      payloadType: payload?.type,
+      endpoint: CONFIG.BACKEND_AI_ENDPOINT
+    });
+
+    return {
+      success: false,
+      error: error.message || 'Backend network error occurred',
+      code: 'NETWORK_ERROR'
+    };
+  }
+}
 
 // ═══════════════════════════════════════════════════════════════
 // Request Handlers
 // ═══════════════════════════════════════════════════════════════
 
 async function handleAIRequest(type, problemData, codeData = null) {
+  if (!problemData?.title || !problemData?.description) {
+    return {
+      success: false,
+      error: 'Problem data is not available yet. Refresh the page and try again.'
+    };
+  }
+
+  const normalizedType = (type || 'explain').toLowerCase();
   const problemContext = `
 Problem: ${problemData.title}
 
@@ -157,13 +215,9 @@ Constraints:
 ${problemData.constraints?.join('\n') || 'Not specified'}
 `.trim();
 
-  if (!SYSTEM_PROMPTS[type] && type !== 'analyze' && type !== 'stuck') {
-    return { success: false, error: 'Unknown request type' };
-  }
-
-  const promptHeader = `Request Type: ${type}\n\nGuidance:\n${SYSTEM_PROMPTS[type] || SYSTEM_PROMPTS.base}`;
   const payload = {
-    problem: `${promptHeader}\n\n${problemContext}`,
+    type: normalizedType,
+    problem: problemContext,
     code: codeData?.content || 'No code provided',
     language: codeData?.language || 'unknown'
   };
@@ -176,13 +230,13 @@ ${problemData.constraints?.join('\n') || 'Not specified'}
 // ═══════════════════════════════════════════════════════════════
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  console.log('AlgoLens Background: Received message', message.type);
+  console.log('UpLift Background: Received message', message.type);
 
   // Handle async responses
   (async () => {
     try {
       switch (message.type) {
-        case 'AI_REQUEST':
+        case 'AI_REQUEST': {
           const result = await handleAIRequest(
             message.requestType,
             message.problemData,
@@ -190,16 +244,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           );
           sendResponse(result);
           break;
+        }
 
-        case 'PING':
+        case 'PING': {
           sendResponse({ pong: true });
           break;
+        }
 
-        default:
+        default: {
           sendResponse({ error: 'Unknown message type' });
+        }
       }
     } catch (error) {
-      console.error('AlgoLens Background Error:', error);
+      console.error('UpLift Background Error:', error);
       sendResponse({ success: false, error: error.message });
     }
   })();
@@ -213,9 +270,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // ═══════════════════════════════════════════════════════════════
 
 chrome.action.onClicked.addListener((tab) => {
-  if (tab.url.includes('leetcode.com/problems/')) {
+  if (tab?.id && typeof tab.url === 'string' && tab.url.includes('leetcode.com/problems/')) {
     chrome.tabs.sendMessage(tab.id, { type: 'TOGGLE_SIDEBAR' });
   }
 });
 
-console.log('🔍 AlgoLens: Background service worker initialized');
+console.log('🔍 UpLift: Background service worker initialized');

@@ -1,5 +1,5 @@
 /**
- * AlgoLens - Sidebar JavaScript
+ * UpLift - Sidebar JavaScript
  * Handles: UI interactions, accordion, tabs, state management, API communication
  */
 
@@ -19,6 +19,7 @@
       2: null,
       3: null
     },
+    activeHint: null,    // Single open hint panel in Guidance > Hints
     loading: {},
     activeSection: null, // Single open accordion section
     activeTab: 'hints',   // Active tab in guidance section
@@ -52,18 +53,81 @@
     stuckContent: document.getElementById('stuckContent'),
     
     // Modal
-    settingsModal: document.getElementById('settingsModal')
+    settingsModal: document.getElementById('settingsModal'),
+    splashOverlay: document.getElementById('splashOverlay')
   };
+
+  // ═══════════════════════════════════════════════════════════════
+  // Splash Screen
+  // ═══════════════════════════════════════════════════════════════
+
+  function completeSplashImmediately() {
+    document.body.classList.remove('splash-pending', 'splash-running', 'splash-exit');
+    document.body.classList.add('splash-complete');
+    if (elements.splashOverlay) {
+      elements.splashOverlay.classList.add('hidden');
+    }
+  }
+
+  function runSplashAnimation() {
+    if (!elements.splashOverlay) {
+      completeSplashImmediately();
+      return;
+    }
+
+    document.body.classList.add('splash-running');
+
+    // Timeline:
+    // 0.0s–0.3s: overlay appears with blur
+    // 0.3s–3.0s: matrix rain plays
+    // 3.0s–3.6s: overlay fades out
+    // 3.6s+: sidebar fully revealed
+    const exitStartDelay = 3000;
+    const doneDelay = 3600;
+
+    setTimeout(() => {
+      document.body.classList.add('splash-exit');
+    }, exitStartDelay);
+
+    setTimeout(() => {
+      completeSplashImmediately();
+    }, doneDelay);
+  }
 
   // ═══════════════════════════════════════════════════════════════
   // Utilities
   // ═══════════════════════════════════════════════════════════════
+
+  function escapeHtml(raw) {
+    return String(raw)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function buildUserFacingError(message, requestId) {
+    if (!requestId) {
+      return message;
+    }
+    return `${message} (ref: ${requestId})`;
+  }
+
+  function extractErrorMessage(result, fallback) {
+    return buildUserFacingError(
+      result?.error || fallback,
+      result?.requestId || result?.meta?.requestId
+    );
+  }
   
   function formatContent(text) {
     if (!text) return '';
+
+    const safeText = escapeHtml(text);
     
     // Convert markdown-like formatting to HTML
-    let html = text
+    let html = safeText
       // Headers
       .replace(/^### (.+)$/gm, '<h4>$1</h4>')
       .replace(/^## (.+)$/gm, '<h4>$1</h4>')
@@ -270,11 +334,38 @@
 
   function showError(section, message) {
     const content = document.getElementById(`${section}Content`);
+    const safeMessage = escapeHtml(message || 'Something went wrong');
+
     if (content) {
       const scrollContainer = content.querySelector('.content-scroll') || content;
-      scrollContainer.innerHTML = `<p style="color: var(--color-error);">⚠️ ${message}</p>`;
+      scrollContainer.innerHTML = `<p style="color: var(--color-error);">⚠️ ${safeMessage}</p>`;
     }
+
     hideLoading(section, true);
+  }
+
+  function showHintError(message) {
+    if (!elements.hintsContainer) {
+      return;
+    }
+
+    let errorNode = document.getElementById('hintsErrorMessage');
+    if (!errorNode) {
+      errorNode = document.createElement('p');
+      errorNode.id = 'hintsErrorMessage';
+      errorNode.style.color = 'var(--color-error)';
+      errorNode.style.marginBottom = 'var(--space-2)';
+      elements.hintsContainer.prepend(errorNode);
+    }
+
+    errorNode.textContent = `⚠️ ${message}`;
+  }
+
+  function clearHintError() {
+    const errorNode = document.getElementById('hintsErrorMessage');
+    if (errorNode) {
+      errorNode.remove();
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -294,14 +385,24 @@
   }
 
   async function requestAI(type) {
+    if (!state.problemData) {
+      return {
+        success: false,
+        error: 'Problem data is not loaded yet. Click refresh and try again.'
+      };
+    }
+
     const response = await sendToBackground({
       type: 'AI_REQUEST',
       requestType: type,
       problemData: state.problemData,
       codeData: state.codeData
     });
-    
-    return response;
+
+    return response || {
+      success: false,
+      error: 'No response from background service worker'
+    };
   }
 
   // ═══════════════════════════════════════════════════════════════
@@ -309,6 +410,10 @@
   // ═══════════════════════════════════════════════════════════════
   
   async function handleExplain() {
+    if (state.loading.problem) {
+      return;
+    }
+
     showLoading('problem');
     
     try {
@@ -320,7 +425,7 @@
         state.sectionContent.problem = result.content;
         hideLoading('problem', true);
       } else {
-        showError('problem', result.error || 'Failed to analyze problem');
+        showError('problem', extractErrorMessage(result, 'Failed to analyze problem'));
       }
     } catch (error) {
       showError('problem', error.message);
@@ -328,6 +433,10 @@
   }
 
   async function handleConstraints() {
+    if (state.loading.constraints) {
+      return;
+    }
+
     showLoading('constraints');
     
     try {
@@ -339,7 +448,7 @@
         state.sectionContent.constraints = result.content;
         hideLoading('constraints', true);
       } else {
-        showError('constraints', result.error || 'Failed to analyze constraints');
+        showError('constraints', extractErrorMessage(result, 'Failed to analyze constraints'));
       }
     } catch (error) {
       showError('constraints', error.message);
@@ -347,6 +456,10 @@
   }
 
   async function handleComplexity() {
+    if (state.loading.complexity) {
+      return;
+    }
+
     showLoading('complexity');
     
     try {
@@ -357,7 +470,7 @@
         state.sectionContent.complexity = result.content;
         hideLoading('complexity', true);
       } else {
-        showError('complexity', result.error || 'Failed to determine complexity');
+        showError('complexity', extractErrorMessage(result, 'Failed to determine complexity'));
       }
     } catch (error) {
       showError('complexity', error.message);
@@ -365,47 +478,88 @@
   }
 
   async function handleHint(level) {
-    // Check if already revealed
-    if (state.hints[level]) {
+    if (state.loading.hints) {
       return;
     }
-    
+
+    const levelKey = String(level);
+
+    // Toggle behavior: clicking the same hint closes it
+    if (state.activeHint === levelKey) {
+      setActiveHint(null);
+      return;
+    }
+
+    // If hint content is already loaded, just switch active panel
+    if (state.hints[level]) {
+      setActiveHint(levelKey);
+      return;
+    }
+
+    // Close any currently open hint while loading a new one
+    setActiveHint(null);
+    clearHintError();
+    state.loading.hints = true;
+
     const loadingEl = document.getElementById('hintsLoading');
     if (loadingEl) loadingEl.classList.remove('hidden');
-    
+
     try {
       const result = await requestAI(`hint${level}`);
-      
+
       if (result.success) {
         state.hints[level] = result.content;
-        
-        // Mark button as revealed
+
         const btn = document.querySelector(`[data-hint="${level}"]`);
+        const hintLabel = btn?.querySelector('.hint-label')?.textContent?.trim() || `Hint ${level}`;
         if (btn) btn.classList.add('revealed');
-        
-        // Add hint card
+
         const hintCard = document.createElement('div');
         hintCard.className = 'hint-card';
+        hintCard.dataset.hintPanel = levelKey;
         hintCard.innerHTML = `
-          <div class="hint-card-header">
-            <span>Level ${level}</span>
-            <span>•</span>
-            <span>${level === 1 ? 'Direction' : level === 2 ? 'Approach' : 'Logic'}</span>
+          <div class="hint-card-inner">
+            <div class="hint-card-header">
+              <span>Level ${level}</span>
+              <span>•</span>
+              <span>${hintLabel}</span>
+            </div>
+            <div class="hint-card-body">${formatContent(result.content)}</div>
           </div>
-          <div class="hint-card-body">${formatContent(result.content)}</div>
         `;
         elements.hintsContainer.appendChild(hintCard);
+
+        setActiveHint(levelKey);
       } else {
-        console.error('Hint error:', result.error);
+        showHintError(extractErrorMessage(result, 'Failed to fetch hint'));
       }
     } catch (error) {
-      console.error('Hint error:', error);
+      showHintError(error.message || 'Failed to fetch hint');
+    } finally {
+      state.loading.hints = false;
+      if (loadingEl) loadingEl.classList.add('hidden');
     }
-    
-    if (loadingEl) loadingEl.classList.add('hidden');
+  }
+
+  function setActiveHint(levelOrNull) {
+    const activeLevel = levelOrNull ? String(levelOrNull) : null;
+
+    document.querySelectorAll('[data-hint]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.hint === activeLevel);
+    });
+
+    elements.hintsContainer?.querySelectorAll('.hint-card').forEach(card => {
+      card.classList.toggle('open', card.dataset.hintPanel === activeLevel);
+    });
+
+    state.activeHint = activeLevel;
   }
 
   async function handleIdeas() {
+    if (state.loading.ideas) {
+      return;
+    }
+
     showLoading('ideas');
     
     try {
@@ -416,7 +570,7 @@
         state.sectionContent.ideas = result.content;
         hideLoading('ideas', true);
       } else {
-        showError('ideas', result.error || 'Failed to generate ideas');
+        showError('ideas', extractErrorMessage(result, 'Failed to generate ideas'));
       }
     } catch (error) {
       showError('ideas', error.message);
@@ -424,6 +578,10 @@
   }
 
   async function handleAnalyze() {
+    if (state.loading.analyze) {
+      return;
+    }
+
     // Request fresh code from content script
     window.parent.postMessage({ type: 'ALGOLENS_REQUEST_CODE' }, '*');
     
@@ -441,7 +599,7 @@
         state.sectionContent.analyze = result.content;
         hideLoading('analyze', true);
       } else {
-        showError('analyze', result.error || 'Failed to analyze code');
+        showError('analyze', extractErrorMessage(result, 'Failed to analyze code'));
       }
     } catch (error) {
       showError('analyze', error.message);
@@ -550,6 +708,10 @@
   }
 
   async function handleStuck() {
+    if (state.loading.stuck) {
+      return;
+    }
+
     // Request fresh code
     window.parent.postMessage({ type: 'ALGOLENS_REQUEST_CODE' }, '*');
     
@@ -566,7 +728,7 @@
         state.sectionContent.stuck = result.content;
         hideLoading('stuck', true);
       } else {
-        showError('stuck', result.error || 'Failed to get help');
+        showError('stuck', extractErrorMessage(result, 'Failed to get help'));
       }
     } catch (error) {
       showError('stuck', error.message);
@@ -723,8 +885,8 @@
   // ═══════════════════════════════════════════════════════════════
   
   function init() {
-    console.log('🔍 AlgoLens Sidebar: Initializing...');
-    
+    console.log('🔍 UpLift Sidebar: Initializing...');
+
     // Setup event listeners
     setupEventListeners();
     
@@ -736,8 +898,10 @@
     
     // Request initial data
     window.parent.postMessage({ type: 'ALGOLENS_REQUEST_DATA' }, '*');
+
+    runSplashAnimation();
     
-    console.log('🔍 AlgoLens Sidebar: Ready');
+    console.log('🔍 UpLift Sidebar: Ready');
   }
 
   // Start when DOM is ready

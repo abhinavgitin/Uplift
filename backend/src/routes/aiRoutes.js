@@ -4,6 +4,7 @@ import { validateSolveRequest } from '../middleware/validateRequest.js';
 
 const router = Router();
 
+router.post('/', validateSolveRequest, solveProblemController);
 router.post('/solve', validateSolveRequest, solveProblemController);
 
 export { router as aiRoutes };

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "AlgoLens",
+  "name": "UpLift",
   "version": "1.0.0",
-  "description": "A thinking assistant for LeetCode - guides your problem-solving, never gives solutions",
+  "description": "This is an Extension that is specifically made for the leetcoders which will help them to solve the problems in a better way and also will help them to understand the problems that they are solving.",
   
   "permissions": [
     "storage",
@@ -10,7 +10,9 @@
   ],
   
   "host_permissions": [
-    "https://leetcode.com/*"
+    "https://leetcode.com/*",
+    "http://localhost:8080/*",
+    "http://127.0.0.1:8080/*"
   ],
   
   "background": {
@@ -40,6 +42,17 @@
   ],
   
   "action": {
-    "default_title": "Toggle AlgoLens"
+    "default_title": "Toggle UpLift",
+    "default_icon": {
+      "16": "assets/icons/icon16.svg",
+      "48": "assets/icons/icon48.svg",
+      "128": "assets/icons/icon128.svg"
+    }
+  },
+
+  "icons": {
+    "16": "assets/icons/icon16.svg",
+    "48": "assets/icons/icon48.svg",
+    "128": "assets/icons/icon128.svg"
   }
 }

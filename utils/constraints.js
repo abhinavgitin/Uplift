@@ -1,5 +1,5 @@
 /**
- * AlgoLens - Constraint Analyzer
+ * UpLift - Constraint Analyzer
  * Rule-based constraint to complexity mapping
  */
 

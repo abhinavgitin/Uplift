@@ -2,24 +2,44 @@ import { env } from '../config/env.js';
 import { AppError } from '../utils/appError.js';
 
 const bucket = new Map();
+let requestCount = 0;
 
 function getClientKey(req) {
-  return req.ip || req.headers['x-forwarded-for'] || 'unknown';
+  const xForwardedFor = req.headers['x-forwarded-for'];
+  const forwarded = Array.isArray(xForwardedFor) ? xForwardedFor[0] : xForwardedFor;
+  const proxiedIp = typeof forwarded === 'string' ? forwarded.split(',')[0].trim() : null;
+  return proxiedIp || req.ip || req.socket?.remoteAddress || 'unknown';
+}
+
+function cleanupExpiredBuckets(now) {
+  const cutoff = now - env.rateLimit.windowMs;
+  for (const [key, value] of bucket.entries()) {
+    if (value.windowStart < cutoff) {
+      bucket.delete(key);
+    }
+  }
 }
 
 export function rateLimiter(req, _res, next) {
   const key = getClientKey(req);
   const now = Date.now();
-  const windowStart = now - env.rateLimit.windowMs;
 
-  const records = bucket.get(key) || [];
-  const recentRecords = records.filter((timestamp) => timestamp > windowStart);
+  requestCount += 1;
+  if (requestCount % 200 === 0) {
+    cleanupExpiredBuckets(now);
+  }
 
-  if (recentRecords.length >= env.rateLimit.max) {
+  const currentEntry = bucket.get(key);
+  if (!currentEntry || now - currentEntry.windowStart >= env.rateLimit.windowMs) {
+    bucket.set(key, { count: 1, windowStart: now });
+    return next();
+  }
+
+  if (currentEntry.count >= env.rateLimit.max) {
     return next(new AppError('Too many requests, please try again later.', 429, 'RATE_LIMITED'));
   }
 
-  recentRecords.push(now);
-  bucket.set(key, recentRecords);
+  currentEntry.count += 1;
+  bucket.set(key, currentEntry);
   return next();
 }

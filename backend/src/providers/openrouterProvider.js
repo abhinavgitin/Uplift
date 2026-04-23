@@ -2,6 +2,7 @@ import { env } from '../config/env.js';
 import { AppError } from '../utils/appError.js';
 
 const RETRYABLE_UPSTREAM_STATUS = new Set([408, 429, 500, 502, 503, 504]);
+const DEFAULT_OPENROUTER_MODEL = 'nvidia/nemotron-3-super-120b-a12b:free';
 
 function trimErrorMessage(errorBody, maxLength = 400) {
   if (!errorBody) {
@@ -10,7 +11,7 @@ function trimErrorMessage(errorBody, maxLength = 400) {
   return errorBody.length > maxLength ? `${errorBody.slice(0, maxLength)}...` : errorBody;
 }
 
-function extractGrokText(payload) {
+function extractOpenRouterText(payload) {
   const content = payload?.choices?.[0]?.message?.content;
 
   if (typeof content === 'string') {
@@ -27,13 +28,13 @@ function extractGrokText(payload) {
   return '';
 }
 
-export async function solveWithGrok(prompt) {
-  const config = env.providers.grok;
+export async function solveWithOpenRouter(prompt) {
+  const config = env.providers.openrouter;
   if (!config.apiKey) {
-    throw new AppError('Grok API key is not configured', 500, 'PROVIDER_CONFIG_ERROR');
+    throw new AppError('OpenRouter API key is not configured', 500, 'PROVIDER_CONFIG_ERROR');
   }
 
-  const endpoint = 'https://api.x.ai/v1/chat/completions';
+  const endpoint = 'https://openrouter.ai/api/v1/chat/completions';
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), env.ai.requestTimeoutMs);
 
@@ -42,23 +43,22 @@ export async function solveWithGrok(prompt) {
     response = await fetch(endpoint, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${config.apiKey}`
+        Authorization: `Bearer ${config.apiKey}`,
+        'Content-Type': 'application/json'
       },
       signal: controller.signal,
       body: JSON.stringify({
-        model: config.model,
-        messages: [
-          { role: 'system', content: 'You are an expert coding interview assistant.' },
-          { role: 'user', content: prompt }
-        ]
+        model: config.model || DEFAULT_OPENROUTER_MODEL,
+        messages: [{ role: 'user', content: prompt }],
+        max_tokens: 80,
+        temperature: 0.3
       })
     });
   } catch (error) {
     if (error?.name === 'AbortError') {
-      throw new AppError('Grok request timed out', 504, 'PROVIDER_TIMEOUT');
+      throw new AppError('OpenRouter request timed out', 504, 'PROVIDER_TIMEOUT');
     }
-    throw new AppError(`Grok network error: ${error.message}`, 502, 'PROVIDER_NETWORK_ERROR');
+    throw new AppError(`OpenRouter network error: ${error.message}`, 502, 'PROVIDER_NETWORK_ERROR');
   } finally {
     clearTimeout(timeoutId);
   }
@@ -73,7 +73,7 @@ export async function solveWithGrok(prompt) {
         : 502;
 
     throw new AppError(
-      `Grok request failed (${response.status})${providerMessage ? `: ${providerMessage}` : ''}`,
+      `OpenRouter request failed (${response.status})${providerMessage ? `: ${providerMessage}` : ''}`,
       statusCode,
       'PROVIDER_REQUEST_FAILED'
     );
@@ -83,12 +83,14 @@ export async function solveWithGrok(prompt) {
   try {
     data = await response.json();
   } catch {
-    throw new AppError('Grok returned an invalid JSON response', 502, 'PROVIDER_RESPONSE_PARSE_ERROR');
+    throw new AppError('OpenRouter returned an invalid JSON response', 502, 'PROVIDER_RESPONSE_PARSE_ERROR');
   }
 
-  const outputText = extractGrokText(data);
+  const outputText = extractOpenRouterText(data);
+
   if (!outputText.trim()) {
-    throw new AppError('Grok returned an empty response', 502, 'EMPTY_PROVIDER_RESPONSE');
+    throw new AppError('OpenRouter returned an empty response', 502, 'EMPTY_PROVIDER_RESPONSE');
   }
+
   return outputText;
 }

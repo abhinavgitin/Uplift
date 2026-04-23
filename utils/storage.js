@@ -1,5 +1,5 @@
 /**
- * AlgoLens - Chrome Storage Helpers
+ * UpLift - Chrome Storage Helpers
  * Wrapper for chrome.storage.local API
  */
 
