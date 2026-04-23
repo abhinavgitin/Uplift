@@ -262,7 +262,11 @@
   // ═══════════════════════════════════════════════════════════════
   
   function createFAB() {
-    if (state.fabInjected) return;
+    const existingFab = document.getElementById('algolens-fab');
+    if (existingFab) {
+      state.fabInjected = true;
+      return;
+    }
     
     const fab = document.createElement('button');
     fab.id = 'algolens-fab';
@@ -292,7 +296,21 @@
   // ═══════════════════════════════════════════════════════════════
   
   function injectSidebar() {
-    if (state.sidebarInjected) return;
+    const existingContainer = document.getElementById('algolens-sidebar-container');
+    const existingOverlay = document.getElementById('algolens-overlay');
+
+    if (existingContainer && existingOverlay) {
+      state.sidebarInjected = true;
+      return;
+    }
+
+    if (existingContainer) {
+      existingContainer.remove();
+    }
+
+    if (existingOverlay) {
+      existingOverlay.remove();
+    }
 
     // Create overlay for clicking outside to close
     const overlay = document.createElement('div');
@@ -532,10 +550,18 @@
     if (url !== lastUrl) {
       lastUrl = url;
       if (isLeetCodeProblemPage()) {
-        // Re-inject FAB and sidebar if needed
+        // LeetCode often replaces chunks of DOM on route changes.
+        // Reconcile state flags with DOM before attempting reinjection.
         if (!document.getElementById('algolens-fab')) {
-          createFAB();
+          state.fabInjected = false;
         }
+        if (!document.getElementById('algolens-sidebar-container') || !document.getElementById('algolens-overlay')) {
+          state.sidebarInjected = false;
+        }
+
+        createFAB();
+        injectSidebar();
+
         // Send fresh data
         setTimeout(sendDataToSidebar, 1500);
       }

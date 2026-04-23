@@ -9,7 +9,7 @@ It now supports a production-style architecture where AI calls are routed throug
 ## ✨ Features
 - ✅ Context-aware LeetCode sidebar UI.
 - ✅ Backend API proxy for AI inference (`POST /api/ai`).
-- ✅ Multi-provider support via pluggable service layer (OpenAI, Gemini, Grok).
+- ✅ Multi-provider support via pluggable service layer (OpenAI, Gemini, Grok, DeepSeek, OpenRouter).
 - ✅ Environment-variable secret management with `.env`.
 - ✅ Modular backend structure for growth (routes, controllers, services, providers, middleware).
 
@@ -21,7 +21,7 @@ It now supports a production-style architecture where AI calls are routed throug
 |-------|------------|
 | Extension | JavaScript, HTML, CSS, Chrome Extensions MV3 |
 | Backend | Node.js, Express, Zod, Helmet, CORS, dotenv |
-| AI Providers | OpenAI, Google Gemini, Grok (xAI API) |
+| AI Providers | OpenAI, Google Gemini, Grok (xAI API), DeepSeek, OpenRouter |
 
 ---
 
@@ -35,7 +35,17 @@ Flow:
 ```json
 {
   "success": true,
-  "data": "AI response..."
+  "data": {
+    "content": "AI response..."
+  },
+  "meta": {
+    "provider": "gemini",
+    "model": "gemini-2.0-flash",
+    "requestType": "explain",
+    "retries": 0,
+    "latencyMs": 420,
+    "requestId": "uplift-abc123"
+  }
 }
 ```
 
@@ -63,6 +73,8 @@ backend/
       openaiProvider.js
       geminiProvider.js
       grokProvider.js
+      deepseekProvider.js
+      openrouterProvider.js
     routes/
       aiRoutes.js
       healthRoutes.js
@@ -107,6 +119,12 @@ GEMINI_MODEL=gemini-2.0-flash
 
 GROK_API_KEY=...
 GROK_MODEL=grok-beta
+
+DEEPSEEK_API_KEY=...
+DEEPSEEK_MODEL=deepseek-chat
+
+OPENROUTER_API_KEY=...
+OPENROUTER_MODEL=nvidia/nemotron-3-super-120b-a12b:free
 ```
 
 Run backend:
@@ -138,6 +156,7 @@ Body:
 
 ```json
 {
+  "type": "explain",
   "problem": "Two Sum...",
   "code": "function twoSum(nums, target) {}",
   "language": "javascript"
@@ -145,7 +164,7 @@ Body:
 ```
 
 Optional provider override:
-- Header: `x-ai-provider: gemini` (or `openai`, `grok`)
+- Header: `x-ai-provider: gemini` (or `openai`, `grok`, `deepseek`, `openrouter`)
 
 ---
 

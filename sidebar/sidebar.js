@@ -54,8 +54,6 @@
     
     // Modal
     settingsModal: document.getElementById('settingsModal'),
-    sidebarLogoImage: document.getElementById('sidebarLogoImage'),
-    sidebarLogoFallback: document.getElementById('sidebarLogoFallback'),
     splashOverlay: document.getElementById('splashOverlay')
   };
 
@@ -742,12 +740,6 @@
   // ═══════════════════════════════════════════════════════════════
   
   function setupEventListeners() {
-    // Sidebar logo fallback
-    elements.sidebarLogoImage?.addEventListener('error', () => {
-      elements.sidebarLogoImage.classList.add('hidden');
-      elements.sidebarLogoFallback?.classList.remove('hidden');
-    });
-
     // Accordion toggle (single open)
     document.querySelectorAll('.card-header').forEach(header => {
       header.addEventListener('click', () => {
